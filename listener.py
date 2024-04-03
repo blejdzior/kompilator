@@ -1,9 +1,11 @@
 from gen.asdListener import asdListener
 from gen.asdParser import asdParser
+from LLVMgenerator import LLVMgenerator
 from antlr4 import *
 
 
 class Listener(asdListener):
+    generator = LLVMgenerator()
 
     # Enter a parse tree produced by asdParser#prog.
     def enterProg(self, ctx:asdParser.ProgContext):
@@ -32,13 +34,11 @@ class Listener(asdListener):
         pass
 
 
-    # Enter a parse tree produced by asdParser#print.
-    def enterPrint(self, ctx:asdParser.PrintContext):
-        pass
-
     # Exit a parse tree produced by asdParser#print.
     def exitPrint(self, ctx:asdParser.PrintContext):
-        pass
+        value = ctx.value().ID()
+        print(value)
+        print(self.generator.printf(value))
 
 
     # Enter a parse tree produced by asdParser#read.
