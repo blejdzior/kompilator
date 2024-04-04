@@ -50,8 +50,8 @@ class Listener(asdListener):
         # declaring new variables
         ID = ctx.ID().symbol.text
         value = self.stack.pop()
-
-        if ID not in self.variables:
+        temp = [(x, y) for x, y in self.variables if x == ID]
+        if len(temp) == 0:
             self.variables.append((ID, value.type))
             if value.type == VarType.INT:
                 self.generator.declare_i32(ID)

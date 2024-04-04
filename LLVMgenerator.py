@@ -4,28 +4,24 @@ class LLVMgenerator:
     reg = 1
 
     def printf_i32(self, id):
-        reg = str(self.reg)
         id = str(id)
-        self.main_text += "%" + reg +" = load i32, i32* %" + id + "\n"
+        self.main_text += "%" + str(self.reg) +" = load i32, i32* %" + id + "\n"
         self.reg += 1
-        reg = str(self.reg)
-        self.main_text += "%" + reg + " = call i32 (ptr, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strpi, i32 0, i32 0), i32 %" \
-                          + str(int(reg) - 1) + ")\n"
+        self.main_text += "%" + str(self.reg) + " = call i32 (ptr, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strpi, i32 0, i32 0), i32 %" \
+                          + str(self.reg - 1) + ")\n"
         self.reg += 1
 
     def printf_double(self, id):
-        reg = str(self.reg)
         id = str(id)
-        self.main_text += "%" + reg +" = load double, double* %" + id + "\n"
+        self.main_text += "%" + str(self.reg) +" = load double, double* %" + id + "\n"
         self.reg += 1
-        reg = str(self.reg)
-        self.main_text += "%" + reg + " = call double (ptr, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strpd, i32 0, i32 0), double %" \
-                          + str(int(reg) - 1) + ")\n"
+        self.main_text += "%" + str(self.reg) + " = call double (ptr, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strpd, i32 0, i32 0), double %" \
+                          + str(self.reg - 1) + ")\n"
         self.reg += 1
 
     def scanf(self, id):
-        reg = str(self.reg)
-        self.main_text += "%" + reg + " = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @strs, i32 0, i32 0), i32* %" + id + ")\n"
+        id = str(id)
+        self.main_text += "%" + str(reg) + " = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @strs, i32 0, i32 0), i32* %" + id + ")\n"
         self.reg += 1
 
     # declare i32 variable
