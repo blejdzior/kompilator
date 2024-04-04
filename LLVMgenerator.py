@@ -21,7 +21,7 @@ class LLVMgenerator:
 
     def scanf(self, id):
         id = str(id)
-        self.main_text += "%" + str(reg) + " = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @strs, i32 0, i32 0), i32* %" + id + ")\n"
+        self.main_text += "%" + str(self.reg) + " = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @strs, i32 0, i32 0), i32* %" + id + ")\n"
         self.reg += 1
 
     # declare i32 variable
