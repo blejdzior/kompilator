@@ -8,7 +8,10 @@ expr: value ADD value #add
     | value DIV value #div
     | value SUB value #sub
     ;
-value: INT | REAL | ID;
+value: INT #int
+     | REAL #real
+     | ID   #id
+     ;
 
 READ    : 'read';
 PRINT   : 'print';

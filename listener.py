@@ -3,10 +3,21 @@ from gen.asdParser import asdParser
 from LLVMgenerator import LLVMgenerator
 from antlr4 import *
 
+from enum import Enum
+class VarType(Enum):
+    INT = 1
+    REAL = 2
+
+class Value:
+    def __init__(self, name, type):
+        self.name = name
+        self.type = type
+
 
 class Listener(asdListener):
     generator = LLVMgenerator()
     variables = []
+    stack = []
     # Enter a parse tree produced by asdParser#prog.
     def enterProg(self, ctx:asdParser.ProgContext):
         pass
@@ -36,22 +47,39 @@ class Listener(asdListener):
 
     # Exit a parse tree produced by asdParser#assign.
     def exitAssign(self, ctx:asdParser.AssignContext):
+        # declaring new variables
         ID = ctx.ID().symbol.text
-        INT = ctx.value().INT()
+        value = self.stack.pop()
+
         if ID not in self.variables:
-            self.variables.append(ID)
-            self.generator.declare(ID)
+            self.variables.append((ID, value.type))
+            if value.type == VarType.INT:
+                self.generator.declare_i32(ID)
+            elif value.type == VarType.REAL:
+               self.generator.declare_double(ID)
 
-        self.generator.assign(ID, INT)
+        if value.type == VarType.INT:
+            self.generator.assign_i32(ID, value.name)
+        elif value.type == VarType.REAL:
+            self.generator.assign_double(ID, value.name)
 
 
+    def exitReal(self, ctx:asdParser.RealContext):
+        self.stack.append(Value(ctx.REAL().symbol.text, VarType.REAL))
 
+    def exitInt(self, ctx:asdParser.IntContext):
+        self.stack.append(Value(ctx.INT().symbol.text, VarType.INT))
 
     # Exit a parse tree produced by asdParser#print.
     def exitPrint(self, ctx:asdParser.PrintContext):
         ID = ctx.value().ID().symbol.text
-        if ID in self.variables:
-            self.generator.printf(ID)
+        temp = [(x, y) for x, y in self.variables if x == ID]
+        if ID == temp[0][0]:
+            _type = temp[0][1]
+            if _type == VarType.INT:
+                self.generator.printf_i32(ID)
+            elif _type == VarType.REAL:
+                self.generator.printf_double(ID)
         else:
             print("Line " + str(ctx.start.line) + ", unknown variable: " + str(ID))
 
