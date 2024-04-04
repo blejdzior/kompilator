@@ -6,14 +6,19 @@ from antlr4 import *
 
 class Listener(asdListener):
     generator = LLVMgenerator()
-
+    variables = []
     # Enter a parse tree produced by asdParser#prog.
     def enterProg(self, ctx:asdParser.ProgContext):
         pass
 
     # Exit a parse tree produced by asdParser#prog.
     def exitProg(self, ctx:asdParser.ProgContext):
-        pass
+        result = self.generator.generate()
+        print(result)
+        f = open("result.ll", "w")
+        f.write(result)
+        f.close()
+
 
 
     # Enter a parse tree produced by asdParser#add.
@@ -31,14 +36,24 @@ class Listener(asdListener):
 
     # Exit a parse tree produced by asdParser#assign.
     def exitAssign(self, ctx:asdParser.AssignContext):
-        pass
+        ID = ctx.ID().symbol.text
+        INT = ctx.value().INT()
+        if ID not in self.variables:
+            self.variables.append(ID)
+            self.generator.declare(ID)
+
+        self.generator.assign(ID, INT)
+
+
 
 
     # Exit a parse tree produced by asdParser#print.
     def exitPrint(self, ctx:asdParser.PrintContext):
-        value = ctx.value().ID()
-        print(value)
-        print(self.generator.printf(value))
+        ID = ctx.value().ID().symbol.text
+        if ID in self.variables:
+            self.generator.printf(ID)
+        else:
+            print("Line " + str(ctx.start.line) + ", unknown variable: " + str(ID))
 
 
     # Enter a parse tree produced by asdParser#read.
@@ -47,7 +62,12 @@ class Listener(asdListener):
 
     # Exit a parse tree produced by asdParser#read.
     def exitRead(self, ctx:asdParser.ReadContext):
-        pass
+        ID = ctx.value().ID().symbol.text
+        if ID not in self.variables:
+            self.variables.append(ID)
+            self.generator.declare(ID)
+        self.generator.scanf(ID)
+
 
 
     # Enter a parse tree produced by asdParser#mult.

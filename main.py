@@ -4,7 +4,7 @@ from listener import Listener
 from gen.asdListener import asdListener
 from antlr4 import *
 
-code = InputStream("print(asd)")
+code = InputStream("x = 10 print(x)")
 lexer = asdLexer(input=code)
 tokens = CommonTokenStream(lexer)
 parser = asdParser(tokens)
