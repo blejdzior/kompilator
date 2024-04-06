@@ -1,17 +1,35 @@
 from gen.asdListener import asdListener
 from gen.asdParser import asdParser
+from LLVMgenerator import LLVMgenerator
 from antlr4 import *
+
+from enum import Enum
+class VarType(Enum):
+    INT = 1
+    REAL = 2
+
+class Value:
+    def __init__(self, name, type):
+        self.name = name
+        self.type = type
 
 
 class Listener(asdListener):
-
+    generator = LLVMgenerator()
+    variables = []
+    stack = []
     # Enter a parse tree produced by asdParser#prog.
     def enterProg(self, ctx:asdParser.ProgContext):
         pass
 
     # Exit a parse tree produced by asdParser#prog.
     def exitProg(self, ctx:asdParser.ProgContext):
-        pass
+        result = self.generator.generate()
+        print(result)
+        f = open("result.ll", "w")
+        f.write(result)
+        f.close()
+
 
 
     # Enter a parse tree produced by asdParser#add.
@@ -29,16 +47,41 @@ class Listener(asdListener):
 
     # Exit a parse tree produced by asdParser#assign.
     def exitAssign(self, ctx:asdParser.AssignContext):
-        pass
+        # declaring new variables
+        ID = ctx.ID().symbol.text
+        value = self.stack.pop()
+        temp = [(x, y) for x, y in self.variables if x == ID]
+        if len(temp) == 0:
+            self.variables.append((ID, value.type))
+            if value.type == VarType.INT:
+                self.generator.declare_i32(ID)
+            elif value.type == VarType.REAL:
+               self.generator.declare_double(ID)
+
+        if value.type == VarType.INT:
+            self.generator.assign_i32(ID, value.name)
+        elif value.type == VarType.REAL:
+            self.generator.assign_double(ID, value.name)
 
 
-    # Enter a parse tree produced by asdParser#print.
-    def enterPrint(self, ctx:asdParser.PrintContext):
-        pass
+    def exitReal(self, ctx:asdParser.RealContext):
+        self.stack.append(Value(ctx.REAL().symbol.text, VarType.REAL))
+
+    def exitInt(self, ctx:asdParser.IntContext):
+        self.stack.append(Value(ctx.INT().symbol.text, VarType.INT))
 
     # Exit a parse tree produced by asdParser#print.
     def exitPrint(self, ctx:asdParser.PrintContext):
-        pass
+        ID = ctx.value().ID().symbol.text
+        temp = [(x, y) for x, y in self.variables if x == ID]
+        if ID == temp[0][0]:
+            _type = temp[0][1]
+            if _type == VarType.INT:
+                self.generator.printf_i32(ID)
+            elif _type == VarType.REAL:
+                self.generator.printf_double(ID)
+        else:
+            print("Line " + str(ctx.start.line) + ", unknown variable: " + str(ID))
 
 
     # Enter a parse tree produced by asdParser#read.
@@ -47,7 +90,12 @@ class Listener(asdListener):
 
     # Exit a parse tree produced by asdParser#read.
     def exitRead(self, ctx:asdParser.ReadContext):
-        pass
+        ID = ctx.value().ID().symbol.text
+        if ID not in self.variables:
+            self.variables.append(ID)
+            self.generator.declare(ID)
+        self.generator.scanf(ID)
+
 
 
     # Enter a parse tree produced by asdParser#mult.
