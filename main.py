@@ -3,10 +3,11 @@ from gen.asdParser import asdParser
 from listener import Listener
 from gen.asdListener import asdListener
 from antlr4 import *
-
+import os
 
 def main():
-    code = InputStream("x = 10.2 y=5.0 z=3 print(x) print(z)")
+    f = open("nasz.jezyk", "r")
+    code = InputStream(f.read())
     lexer = asdLexer(input=code)
     tokens = CommonTokenStream(lexer)
     parser = asdParser(tokens)
@@ -15,6 +16,9 @@ def main():
     walker = ParseTreeWalker()
     walker.walk(listener, tree)
 
+    os.system('clang result.ll -o res.exe')
+    cwd = os.getcwd()
+    os.system(cwd + "\\res.exe")
 
 if __name__ == "__main__":
     main()
