@@ -22,6 +22,7 @@ class Listener(asdListener):
         self.stack = []
         self.int = ['i8', 'i16', 'i32', 'i64']
         self.float = ['f32', 'f64']
+        self.skip_eval = False
 
     # Enter a parse tree produced by asdParser#prog.
     def enterProg(self, ctx:asdParser.ProgContext):
@@ -239,25 +240,6 @@ class Listener(asdListener):
   
         self.generator.andOp(v1, v2)
         self.stack.append(Value("%"+str(self.generator.reg-1), VarType.BOOL))
-
-    # def enterOrOp(self, ctx:asdParser.OrOpContext):
-    #     try:
-    #         v1 = ctx.value(0).ID().symbol.text
-    #     except AttributeError:
-    #         try:
-    #             v1 = self.stack.pop()
-    #         except IndexError:
-    #             v1 = ctx.value(0).BOOL().symbol.text
-        
-    #     try:
-    #         v2 = ctx.value(1).ID().symbol.text
-    #     except AttributeError:
-    #         try:
-    #             v2 = self.stack.pop()
-    #         except IndexError:
-    #             v2 = ctx.value(1).BOOL().symbol.text
-    #         except:
-    #             print("dddddddddddd")
 
     def exitNegOp(self, ctx:asdParser.NegOpContext):
         try:
