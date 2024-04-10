@@ -1,6 +1,7 @@
 from gen.asdListener import asdListener
 from gen.asdParser import asdParser
 from LLVMgenerator import LLVMgenerator
+from value import Value
 from antlr4 import *
 import numpy as np
 
@@ -10,10 +11,7 @@ class VarType(Enum):
     REAL = 2
     BOOL = 3
 
-class Value:
-    def __init__(self, name, type):
-        self.name = name
-        self.type = type
+
 
 
 
@@ -72,6 +70,8 @@ class Listener(asdListener):
             type = ctx.var().type_().getText()
         except AttributeError:
             type = None
+        
+        # Can assign var to var if: try: value = self.stack.pop() except IndexError: value = ctx.value().ID().symbol.text
         value = self.stack.pop()
 
         temp = [(x, y) for x, y in self.variables if x == ID]
@@ -79,7 +79,6 @@ class Listener(asdListener):
         # if ID is not in self.variables
         if len(temp) == 0:
             # check if declared type matches value type
-            # int type
             if type in self.int and value.type == VarType.INT:
                 bitlen = int(value.name).bit_length()
                 if type == self.int[0] and bitlen in range (8): # i8
@@ -93,22 +92,19 @@ class Listener(asdListener):
                 else:
                     print("Line: " + str(ctx.start.line) + ", integer number is too large to write to " + str(type))
                     return
-            # float type
             elif type in self.float and value.type == VarType.REAL:
                 if type == self.float[0]: # f32
                     self.generator.declare_float32(ID) 
                 elif type == self.float[1]: # f64
                     self.generator.declare_double(ID)
-            # bool type
-            elif type == 'bool' and value.type == VarType.BOOL:
+            elif type == 'bool' or value.type == VarType.BOOL:
                 self.generator.declare_bool(ID)
             elif type == None: # no declared type
                 if value.type == VarType.INT:
                     self.generator.declare_i32(ID)
                 elif value.type == VarType.REAL:
                     self.generator.declare_double(ID)  
-                elif value.type == VarType.BOOL:
-                    self.generator.declare_bool(ID)
+          
             else:
                 print("Line: " + str(ctx.start.line) + ", VarType and ValueType mismatch")
                 return
@@ -126,8 +122,13 @@ class Listener(asdListener):
             self.generator.assign_i32(ID, value.name)
         elif type == VarType.REAL:
             self.generator.assign_double(ID, value.name)
-        elif type == VarType.BOOL or type == 'bool':
-            self.generator.assign_bool(ID, value.name)
+        elif type == 'bool' or type == VarType.BOOL:
+            if value.name == 'true':
+                self.generator.assign_bool(ID, 1)
+            elif value.name == 'false':
+                self.generator.assign_bool(ID, 0)
+            else:
+                self.generator.assign_bool(ID, value.name)
         elif type in self.int:
             if type == 'i8':
                 self.generator.assign_i8(ID, value.name)
@@ -149,7 +150,6 @@ class Listener(asdListener):
 
     def exitInt(self, ctx:asdParser.IntContext):
         self.stack.append(Value(ctx.INT().symbol.text, VarType.INT))
-
     def exitBool(self, ctx:asdParser.BoolContext):
         self.stack.append(Value(ctx.BOOL().symbol.text, VarType.BOOL))
 
@@ -163,6 +163,8 @@ class Listener(asdListener):
                 self.generator.printf_i32(ID)
             elif _type == VarType.REAL:
                 self.generator.printf_double(ID)
+            elif _type == 'bool' or _type == VarType.BOOL:
+                self.generator.printf_bool(ID)
             elif _type in self.int:
                 if _type == 'i8':
                     self.generator.printf_i8(ID)
@@ -199,6 +201,8 @@ class Listener(asdListener):
             self.generator.scanf_int32(ID)
         elif _type == VarType.REAL:
             self.generator.scanf_double(ID)
+        elif _type == 'bool' or _type == VarType.BOOL:
+            self.generator.scanf_bool(ID)
         elif _type in self.int:
             if _type == 'i8':
                 self.generator.scanf_int8(ID)
@@ -216,8 +220,97 @@ class Listener(asdListener):
         else:
             print("Line: " + str(ctx.start.line) + ", unknown variable type")
         
+    def exitAndOp(self, ctx:asdParser.AndOpContext):
+        try:
+            v1 = ctx.value(0).ID().symbol.text
+        except AttributeError:
+            try:
+                v1 = self.stack.pop()
+            except IndexError:
+                v1 = ctx.value(0).BOOL().symbol.text
+        
+        try:
+            v2 = ctx.value(1).ID().symbol.text
+        except AttributeError:
+            try:
+                v2 = self.stack.pop()
+            except IndexError:
+                v2 = ctx.value(1).BOOL().symbol.text
+  
+        self.generator.andOp(v1, v2)
+        self.stack.append(Value("%"+str(self.generator.reg-1), VarType.BOOL))
+
+    # def enterOrOp(self, ctx:asdParser.OrOpContext):
+    #     try:
+    #         v1 = ctx.value(0).ID().symbol.text
+    #     except AttributeError:
+    #         try:
+    #             v1 = self.stack.pop()
+    #         except IndexError:
+    #             v1 = ctx.value(0).BOOL().symbol.text
+        
+    #     try:
+    #         v2 = ctx.value(1).ID().symbol.text
+    #     except AttributeError:
+    #         try:
+    #             v2 = self.stack.pop()
+    #         except IndexError:
+    #             v2 = ctx.value(1).BOOL().symbol.text
+    #         except:
+    #             print("dddddddddddd")
+
+    def exitNegOp(self, ctx:asdParser.NegOpContext):
+        try:
+            v = ctx.value().ID().symbol.text
+        except AttributeError:
+            try:
+                v = self.stack.pop()
+            except IndexError():
+                v = ctx.value().BOOL().symbol.text
+        
+        self.generator.NegOp(v)
+        self.stack.append(Value("%"+str(self.generator.reg-1), VarType.BOOL))
 
 
+    def exitOrOp(self, ctx:asdParser.OrOpContext):
+        try:
+            v1 = ctx.value(0).ID().symbol.text
+        except AttributeError:
+            try:
+                v1 = self.stack.pop()
+            except IndexError:
+                v1 = ctx.value(0).BOOL().symbol.text
+        
+        try:
+            v2 = ctx.value(1).ID().symbol.text
+        except AttributeError:
+            try:
+                v2 = self.stack.pop()
+            except IndexError:
+                v2 = ctx.value(1).BOOL().symbol.text
+  
+        self.generator.orOp(v1, v2)
+        self.stack.append(Value("%"+str(self.generator.reg-1), VarType.BOOL))
+    
+    def exitXorOp(self, ctx:asdParser.XorOpContext):
+        try:
+            v1 = ctx.value(0).ID().symbol.text
+        except AttributeError:
+            try:
+                v1 = self.stack.pop()
+            except IndexError:
+                v1 = ctx.value(0).BOOL().symbol.text
+        
+        try:
+            v2 = ctx.value(1).ID().symbol.text
+        except AttributeError:
+            try:
+                v2 = self.stack.pop()
+            except IndexError:
+                v2 = ctx.value(1).BOOL().symbol.text
+  
+        self.generator.XorOp(v1, v2)
+        self.stack.append(Value("%"+str(self.generator.reg-1), VarType.BOOL))
 
     # Enter a parse tree produced by asdParser#mult.
     def enterMult(self, ctx:asdParser.MultContext):

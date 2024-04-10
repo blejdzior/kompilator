@@ -1,4 +1,3 @@
-z=2.5*3.5
-y = 20 - 21
-print(y)
+x = false
+z = neg x and true 
 print(z)
