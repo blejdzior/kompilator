@@ -7,7 +7,21 @@ expr: value ADD value #add
     | value MULT value #mult
     | value DIV value #div
     | value SUB value #sub
+    | booleanOperation # booleanOp
     ;
+booleanOperation: andOp # and
+                | orOp # or
+                | xorOp # xor
+                | negOp # neg
+                ;
+
+andOp: value AND (value | booleanOperation);
+orOp : value OR (value | booleanOperation);
+xorOp: value XOR (value |  booleanOperation);
+negOp: NEG  value
+     | NEG '(' booleanOperation ')'
+     | NEG booleanOperation
+     ;
 
 var: ID (':' type)?
         ;
@@ -25,6 +39,10 @@ type: 'i8'
     ;
 
 
+AND     : 'and';
+OR      : 'or';
+XOR     : 'xor';
+NEG     : 'neg';
 READ    : 'read';
 PRINT   : 'print';
 BOOL    : 'true' | 'false';
