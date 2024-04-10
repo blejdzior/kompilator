@@ -39,6 +39,43 @@ class LLVMgenerator:
     # assign double value
     def assign_double(self, id, value):
         self.main_text += "store double " + str(value) + ", double* %" + str(id) + "\n"
+
+    def add_i32(self, value1, value2):
+        self.main_text += "%" + str(self.reg) + " = add i32 " + str(value1) + ", " + str(value2) + "\n"
+        self.reg += 1
+
+    def add_double(self, value1, value2):
+        self.main_text += "%" + str(self.reg) + " = fadd double " + str(value1) + ", " + str(value2) + "\n"
+        self.reg += 1
+
+    def sub_i32(self, value1, value2):
+        self.main_text += "%" + str(self.reg) + " = sub i32 " + str(value1) + ", " + str(value2) + "\n"
+        self.reg += 1
+
+    def sub_double(self, value1, value2):
+        self.main_text += "%" + str(self.reg) + " = fsub double " + str(value1) + ", " + str(value2) + "\n"
+        self.reg += 1
+
+    def mult_i32(self, val1, val2):
+        self.main_text += "%" + str(self.reg) + " = mul i32 " + str(val1) + ", " + str(val2) + "\n"
+        self.reg += 1
+
+
+    def mult_double(self, val1, val2):
+        self.main_text += "%" + str(self.reg) + " = fmul double " + str(val1) + ", " + str(val2) + "\n"
+        self.reg += 1
+
+
+    def div_i32(self, val1, val2):
+        self.main_text += "%" + str(self.reg) + " = sdiv i32 " + str(val1) + ", " + str(val2) + "\n"
+        self.reg += 1
+
+
+    def div_double(self, val1, val2):
+        self.main_text += "%" + str(self.reg) + " = fdiv double " + str(val1) + ", " + str(val2) + "\n"
+        self.reg += 1
+
+
     def generate(self):
         text = ""
         text += "declare i32 @printf(i8*, ...)\n"

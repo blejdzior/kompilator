@@ -38,6 +38,18 @@ class Listener(asdListener):
 
     # Exit a parse tree produced by asdParser#add.
     def exitAdd(self, ctx:asdParser.AddContext):
+        b = self.stack.pop()
+        a = self.stack.pop()
+        if a.type == b.type:
+            if a.type == VarType.INT:
+                self.generator.add_i32(a.name, b.name)
+                self.stack.append(Value("%"+str(self.generator.reg-1), VarType.INT) )
+
+            if a.type == VarType.REAL:
+                self.generator.add_double(a.name, b.name)
+                self.stack.append(Value("%"+str(self.generator.reg-1), VarType.REAL) )
+        else:
+            raise Exception(ctx.start.line, "add type mismatch")
         pass
 
 
@@ -56,7 +68,7 @@ class Listener(asdListener):
             if value.type == VarType.INT:
                 self.generator.declare_i32(ID)
             elif value.type == VarType.REAL:
-               self.generator.declare_double(ID)
+                self.generator.declare_double(ID)
 
         if value.type == VarType.INT:
             self.generator.assign_i32(ID, value.name)
@@ -104,6 +116,18 @@ class Listener(asdListener):
 
     # Exit a parse tree produced by asdParser#mult.
     def exitMult(self, ctx:asdParser.MultContext):
+        v2 = self.stack.pop()
+        v1 = self.stack.pop()
+        if v1.type == v2.type:
+            if v1.type == VarType.INT:
+                self.generator.mult_i32(v1.name, v2.name)
+                self.stack.append(Value("%"+str(self.generator.reg-1), VarType.INT) )
+            if v1.type == VarType.REAL:
+                self.generator.mult_double(v1.name, v2.name)
+                self.stack.append(Value("%"+str(self.generator.reg-1), VarType.REAL) )
+
+        else:
+            raise Exception(ctx.start.line, "mult type mismatch")
         pass
 
 
@@ -113,6 +137,21 @@ class Listener(asdListener):
 
     # Exit a parse tree produced by asdParser#div.
     def exitDiv(self, ctx:asdParser.DivContext):
+        v2 = self.stack.pop()
+        v1 = self.stack.pop()
+        if float(v2.name) == 0:
+            raise Exception(ctx.start.line, "divide by zero")
+
+        if v1.type == v2.type:
+            if v1.type == VarType.INT:
+                self.generator.div_i32(v1.name, v2.name)
+                self.stack.append(Value("%"+str(self.generator.reg-1), VarType.INT) )
+            if v1.type == VarType.REAL:
+                self.generator.div_double(v1.name, v2.name)
+                self.stack.append(Value("%"+str(self.generator.reg-1), VarType.REAL) )
+
+        else:
+            raise Exception(ctx.start.line, "div type mismatch")
         pass
 
 
@@ -122,6 +161,18 @@ class Listener(asdListener):
 
     # Exit a parse tree produced by asdParser#sub.
     def exitSub(self, ctx:asdParser.SubContext):
+        b = self.stack.pop()
+        a = self.stack.pop()
+        if a.type == b.type:
+            if a.type == VarType.INT:
+                self.generator.sub_i32(a.name, b.name)
+                self.stack.append(Value("%"+str(self.generator.reg-1), VarType.INT) )
+
+            if a.type == VarType.REAL:
+                self.generator.sub_double(a.name, b.name)
+                self.stack.append(Value("%"+str(self.generator.reg-1), VarType.REAL) )
+        else:
+            raise Exception(ctx.start.line, "sub type mismatch")
         pass
 
 
