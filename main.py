@@ -7,7 +7,7 @@ import os
 
 def main():
     f = open("nasz.jezyk", "r")
-    code = InputStream(f.read().replace('\n', " "))
+    code = InputStream(f.read())
     lexer = asdLexer(input=code)
     tokens = CommonTokenStream(lexer)
     parser = asdParser(tokens)
