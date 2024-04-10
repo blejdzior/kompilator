@@ -68,16 +68,17 @@ class Listener(asdListener):
             # check if declared type matches value type
             if type in self.int and value.type == VarType.INT:
                 bitlen = int(value.name).bit_length()
-                if type == self.int[0] and bitlen in range (9): # i8
+                if type == self.int[0] and bitlen in range (8): # i8
                     self.generator.declare_i8(ID)
-                elif type == self.int[1] and bitlen in range(17): # i16
+                elif type == self.int[1] and bitlen in range(16): # i16
                     self.generator.declare_i16(ID)
-                elif type == self.int[2] and bitlen in range(33): # i32      
+                elif type == self.int[2] and bitlen in range(32): # i32      
                     self.generator.declare_i32(ID)
-                elif type == self.int[3] and bitlen in range(65): # i64
+                elif type == self.int[3] and bitlen in range(64): # i64
                     self.generator.declare_i64(ID)
                 else:
                     print("Line: " + str(ctx.start.line) + ", integer number is too large to write to " + str(type))
+                    return
             elif type in self.float and value.type == VarType.REAL:
                 if type == self.float[0]: # f32
                     self.generator.declare_float32(ID) 

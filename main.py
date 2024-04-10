@@ -16,9 +16,9 @@ def main():
     walker = ParseTreeWalker()
     walker.walk(listener, tree)
 
-    os.system('clang result.ll -o res.exe')
+    os.system('clang-19 result.ll -o res')
     cwd = os.getcwd()
-    os.system(cwd + "\\res.exe")
+    os.system(cwd + "/res")
 
 if __name__ == "__main__":
     main()

@@ -55,14 +55,17 @@ class LLVMgenerator:
         id = str(id)
         self.main_text += "%" + str(self.reg) +" = load float, float* %" + id + "\n"
         self.reg += 1
-        self.main_text += "%" + str(self.reg) + " = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strpd, i32 0, i32 0), float %" \
+        # Convert float to double
+        self.main_text += "%" + str(self.reg) + " = fpext float %" + str(self.reg - 1) + " to double\n"
+        self.reg += 1
+        self.main_text += "%" + str(self.reg) + " = call i32 (ptr, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strpd, i32 0, i32 0), double %" \
                           + str(self.reg - 1) + ")\n"
         self.reg += 1
     
 ######### scanf ###########
     def scanf_float32(self, id):
         id = str(id)
-        self.main_text += "%" + str(self.reg) + " = call i32 (i8*, ...) @scanf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @strs, i32 0, i32 0), float* %" + id + ")\n"
+        self.main_text += "%" + str(self.reg) + " = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @strf, i32 0, i32 0), float* %" + id + ")\n"
         self.reg += 1
     
     def scanf_double(self, id):
@@ -82,12 +85,12 @@ class LLVMgenerator:
     
     def scanf_int16(self, id):
         id = str(id)
-        self.main_text += "%" + str(self.reg) + " = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strpi, i32 0, i32 0), i16* %" + id + ")\n"
+        self.main_text += "%" + str(self.reg) + " = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strhd, i32 0, i32 0), i16* %" + id + ")\n"
         self.reg += 1
     
     def scanf_int8(self, id):
         id = str(id)
-        self.main_text += "%" + str(self.reg) + " = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strpi, i32 0, i32 0), i8* %" + id + ")\n"
+        self.main_text += "%" + str(self.reg) + " = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strhhd, i32 0, i32 0), i8* %" + id + ")\n"
         self.reg += 1
 
 
@@ -150,13 +153,16 @@ class LLVMgenerator:
 
     def generate(self):
         text = "\n\n\n"
-        text += "declare i32 @printf(i8*, ...)\n"
-        text += "declare i32 @scanf(i8*, ...)\n"
+        text += "declare i32 @printf(ptr, ...)\n"
+        text += "declare i32 @__isoc99_scanf(i8*, ...)\n"
         text += "@strpi = constant [4 x i8] c\"%d\\0A\\00\"\n"
         text += "@strpd = constant [4 x i8] c\"%f\\0A\\00\"\n"
         text += "@strs = constant [3 x i8] c\"%d\\00\"\n"
+        text += "@strf = constant [3 x i8] c\"%f\\00\"\n"
         text += "@strpl = constant [5 x i8] c\"%lld\\00\"\n"
         text += "@strlf = constant [4 x i8] c\"%lf\\00\"\n"
+        text += "@strhhd = constant [5 x i8] c\"%hhd\\00\"\n"
+        text += "@strhd = constant [4 x i8] c\"%hd\\00\"\n"
 
         text += self.header_text
         text += "define i32 @main() nounwind{\n"
