@@ -8,6 +8,7 @@ from enum import Enum
 class VarType(Enum):
     INT = 1
     REAL = 2
+    BOOL = 3
 
 class Value:
     def __init__(self, name, type):
@@ -66,6 +67,7 @@ class Listener(asdListener):
         # if ID is not in self.variables
         if len(temp) == 0:
             # check if declared type matches value type
+            # int type
             if type in self.int and value.type == VarType.INT:
                 bitlen = int(value.name).bit_length()
                 if type == self.int[0] and bitlen in range (8): # i8
@@ -79,16 +81,22 @@ class Listener(asdListener):
                 else:
                     print("Line: " + str(ctx.start.line) + ", integer number is too large to write to " + str(type))
                     return
+            # float type
             elif type in self.float and value.type == VarType.REAL:
                 if type == self.float[0]: # f32
                     self.generator.declare_float32(ID) 
                 elif type == self.float[1]: # f64
                     self.generator.declare_double(ID)
+            # bool type
+            elif type == 'bool' and value.type == VarType.BOOL:
+                self.generator.declare_bool(ID)
             elif type == None: # no declared type
                 if value.type == VarType.INT:
                     self.generator.declare_i32(ID)
                 elif value.type == VarType.REAL:
                     self.generator.declare_double(ID)  
+                elif value.type == VarType.BOOL:
+                    self.generator.declare_bool(ID)
             else:
                 print("Line: " + str(ctx.start.line) + ", VarType and ValueType mismatch")
                 return
@@ -106,6 +114,8 @@ class Listener(asdListener):
             self.generator.assign_i32(ID, value.name)
         elif type == VarType.REAL:
             self.generator.assign_double(ID, value.name)
+        elif type == VarType.BOOL or type == 'bool':
+            self.generator.assign_bool(ID, value.name)
         elif type in self.int:
             if type == 'i8':
                 self.generator.assign_i8(ID, value.name)
@@ -127,6 +137,9 @@ class Listener(asdListener):
 
     def exitInt(self, ctx:asdParser.IntContext):
         self.stack.append(Value(ctx.INT().symbol.text, VarType.INT))
+
+    def exitBool(self, ctx:asdParser.BoolContext):
+        self.stack.append(Value(ctx.BOOL().symbol.text, VarType.BOOL))
 
     # Exit a parse tree produced by asdParser#print.
     def exitPrint(self, ctx:asdParser.PrintContext):
