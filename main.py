@@ -15,9 +15,11 @@ def main():
     listener = Listener()
     walker = ParseTreeWalker()
     walker.walk(listener, tree)
+    
+    os.system('clang-19 result.ll -o res')
+    cwd = os.getcwd()
+    os.system(cwd + "/res")
 
-    os.system('clang result.ll -o res.exe')
-    os.system("E:/Bartek/moje_PW/Magisterskie/1_sem_mgr/Jezyki-formalne-i-kompilatory/Lab/kompilator1/kompilator/res.exe")
 
 if __name__ == "__main__":
     main()
