@@ -15,10 +15,11 @@ def main():
     listener = Listener()
     walker = ParseTreeWalker()
     walker.walk(listener, tree)
-
+    
     os.system('clang-19 result.ll -o res')
     cwd = os.getcwd()
     os.system(cwd + "/res")
+
 
 if __name__ == "__main__":
     main()
