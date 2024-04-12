@@ -446,7 +446,7 @@ class LLVMgenerator:
         self.main_text += "%" + str(self.reg) + " = add i64 " + str(value1) + ", " + str(value2) + "\n"
         self.reg += 1
 
-    def add_i32(self, value1, value2)
+    def add_i32(self, value1, value2):
         self.main_text += "%" + str(self.reg) + " = add i32 " + str(value1) + ", " + str(value2) + "\n"
         self.reg += 1
 
