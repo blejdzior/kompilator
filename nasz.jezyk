@@ -1,1 +1,4 @@
-
+y = true
+z = false
+x =  y or z  
+print(x)
