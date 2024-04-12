@@ -361,19 +361,52 @@ class Listener(asdListener):
 
     # Exit a parse tree produced by asdParser#mult.
     def exitMult(self, ctx:asdParser.MultContext):
-        v2 = self.stack.pop()
-        v1 = self.stack.pop()
-        if v1.type == v2.type:
-            if v1.type == VarType.INT:
-                self.generator.mult_i32(v1.name, v2.name)
-                self.stack.append(Value("%"+str(self.generator.reg-1), VarType.INT) )
-            if v1.type == VarType.REAL:
-                self.generator.mult_double(v1.name, v2.name)
-                self.stack.append(Value("%"+str(self.generator.reg-1), VarType.REAL) )
+        b = self.stack.pop()
+        a = self.stack.pop()
 
-        else:
-            raise Exception(ctx.start.line, "mult type mismatch")
-        pass
+        if a.type == VarType.BOOL or b.type == VarType.BOOL:
+            raise Exception(ctx.start.line, "Bool is not multiplicatable")
+
+        if (a.type in self.floats) != (b.type in self.floats):
+            if a.type in self.ints:
+                self.generator.int_to_real(a.name, self.getTypeStr(a.type), 'double')
+                a.name = '%' + str(self.generator.reg - 1)
+                a.type = VarType.REAL64
+            elif b.type in self.ints:
+                self.generator.int_to_real(b.name, self.getTypeStr(b.type), 'double')
+                b.type = VarType.REAL64
+                b.name = '%' + str(self.generator.reg - 1)
+
+
+        if a.type != VarType.INT64 and a.type != VarType.REAL64:
+            if a.type.value < VarType.INT64.value:
+                self.generator.increase_type(a.name, self.getTypeStr(a.type), 'i64')
+                a.type = VarType.INT64
+            else:
+                self.generator.increase_type(a.name, self.getTypeStr(a.type), 'double')
+                a.type = VarType.REAL64
+
+            a.name = '%' + str(self.generator.reg-1)
+
+        if b.type != VarType.INT64 and b.type != VarType.REAL64:
+            if b.type.value < VarType.INT64.value:
+                self.generator.increase_type(b.name, self.getTypeStr(b.type), 'i64')
+                b.type = VarType.INT64
+            else:
+                self.generator.increase_type(b.name, self.getTypeStr(b.type), 'double')
+                b.type = VarType.REAL64
+
+            b.name = '%' + str(self.generator.reg - 1)
+
+        if a.type == VarType.INT64:
+            self.generator.mult_i64(a.name, b.name)
+            self.stack.append(Value("%"+str(self.generator.reg-1), VarType.INT64) )
+            self.variables.append((str(self.generator.reg-1), VarType.INT64))
+
+        if a.type == VarType.REAL64:
+            self.generator.mult_double(a.name, b.name)
+            self.stack.append(Value("%"+str(self.generator.reg-1), VarType.REAL64) )
+            self.variables.append((str(self.generator.reg - 1), VarType.REAL64))
 
 
     # Enter a parse tree produced by asdParser#div.
@@ -382,22 +415,55 @@ class Listener(asdListener):
 
     # Exit a parse tree produced by asdParser#div.
     def exitDiv(self, ctx:asdParser.DivContext):
-        v2 = self.stack.pop()
-        v1 = self.stack.pop()
-        if float(v2.name) == 0:
-            raise Exception(ctx.start.line, "divide by zero")
+        b = self.stack.pop()
+        a = self.stack.pop()
 
-        if v1.type == v2.type:
-            if v1.type == VarType.INT:
-                self.generator.div_i32(v1.name, v2.name)
-                self.stack.append(Value("%"+str(self.generator.reg-1), VarType.INT) )
-            if v1.type == VarType.REAL:
-                self.generator.div_double(v1.name, v2.name)
-                self.stack.append(Value("%"+str(self.generator.reg-1), VarType.REAL) )
+        # if float(b.name) == 0:
+        #     raise Exception(ctx.start.line, "divide by zero")
 
-        else:
-            raise Exception(ctx.start.line, "div type mismatch")
-        pass
+        if a.type == VarType.BOOL or b.type == VarType.BOOL:
+            raise Exception(ctx.start.line, "Bool is not dividable")
+
+        if (a.type in self.floats) != (b.type in self.floats):
+            if a.type in self.ints:
+                self.generator.int_to_real(a.name, self.getTypeStr(a.type), 'double')
+                a.name = '%' + str(self.generator.reg - 1)
+                a.type = VarType.REAL64
+            elif b.type in self.ints:
+                self.generator.int_to_real(b.name, self.getTypeStr(b.type), 'double')
+                b.type = VarType.REAL64
+                b.name = '%' + str(self.generator.reg - 1)
+
+
+        if a.type != VarType.INT64 and a.type != VarType.REAL64:
+            if a.type.value < VarType.INT64.value:
+                self.generator.increase_type(a.name, self.getTypeStr(a.type), 'i64')
+                a.type = VarType.INT64
+            else:
+                self.generator.increase_type(a.name, self.getTypeStr(a.type), 'double')
+                a.type = VarType.REAL64
+
+            a.name = '%' + str(self.generator.reg-1)
+
+        if b.type != VarType.INT64 and b.type != VarType.REAL64:
+            if b.type.value < VarType.INT64.value:
+                self.generator.increase_type(b.name, self.getTypeStr(b.type), 'i64')
+                b.type = VarType.INT64
+            else:
+                self.generator.increase_type(b.name, self.getTypeStr(b.type), 'double')
+                b.type = VarType.REAL64
+
+            b.name = '%' + str(self.generator.reg - 1)
+
+        if a.type == VarType.INT64:
+            self.generator.div_i64(a.name, b.name)
+            self.stack.append(Value("%"+str(self.generator.reg-1), VarType.INT64) )
+            self.variables.append((str(self.generator.reg-1), VarType.INT64))
+
+        if a.type == VarType.REAL64:
+            self.generator.div_double(a.name, b.name)
+            self.stack.append(Value("%"+str(self.generator.reg-1), VarType.REAL64) )
+            self.variables.append((str(self.generator.reg - 1), VarType.REAL64))
 
 
     # Enter a parse tree produced by asdParser#sub.
@@ -408,17 +474,50 @@ class Listener(asdListener):
     def exitSub(self, ctx:asdParser.SubContext):
         b = self.stack.pop()
         a = self.stack.pop()
-        if a.type == b.type:
-            if a.type == VarType.INT:
-                self.generator.sub_i32(a.name, b.name)
-                self.stack.append(Value("%"+str(self.generator.reg-1), VarType.INT) )
 
-            if a.type == VarType.REAL:
-                self.generator.sub_double(a.name, b.name)
-                self.stack.append(Value("%"+str(self.generator.reg-1), VarType.REAL) )
-        else:
-            raise Exception(ctx.start.line, "sub type mismatch")
-        pass
+        if a.type == VarType.BOOL or b.type == VarType.BOOL:
+            raise Exception(ctx.start.line, "Bool is not subtractable")
+
+        if (a.type in self.floats) != (b.type in self.floats):
+            if a.type in self.ints:
+                self.generator.int_to_real(a.name, self.getTypeStr(a.type), 'double')
+                a.name = '%' + str(self.generator.reg - 1)
+                a.type = VarType.REAL64
+            elif b.type in self.ints:
+                self.generator.int_to_real(b.name, self.getTypeStr(b.type), 'double')
+                b.type = VarType.REAL64
+                b.name = '%' + str(self.generator.reg - 1)
+
+
+        if a.type != VarType.INT64 and a.type != VarType.REAL64:
+            if a.type.value < VarType.INT64.value:
+                self.generator.increase_type(a.name, self.getTypeStr(a.type), 'i64')
+                a.type = VarType.INT64
+            else:
+                self.generator.increase_type(a.name, self.getTypeStr(a.type), 'double')
+                a.type = VarType.REAL64
+
+            a.name = '%' + str(self.generator.reg-1)
+
+        if b.type != VarType.INT64 and b.type != VarType.REAL64:
+            if b.type.value < VarType.INT64.value:
+                self.generator.increase_type(b.name, self.getTypeStr(b.type), 'i64')
+                b.type = VarType.INT64
+            else:
+                self.generator.increase_type(b.name, self.getTypeStr(b.type), 'double')
+                b.type = VarType.REAL64
+
+            b.name = '%' + str(self.generator.reg - 1)
+
+        if a.type == VarType.INT64:
+            self.generator.sub_i64(a.name, b.name)
+            self.stack.append(Value("%"+str(self.generator.reg-1), VarType.INT64) )
+            self.variables.append((str(self.generator.reg-1), VarType.INT64))
+
+        if a.type == VarType.REAL64:
+            self.generator.sub_double(a.name, b.name)
+            self.stack.append(Value("%"+str(self.generator.reg-1), VarType.REAL64) )
+            self.variables.append((str(self.generator.reg - 1), VarType.REAL64))
 
 
     # Enter a parse tree produced by asdParser#value.
