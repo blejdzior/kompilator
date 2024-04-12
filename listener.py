@@ -113,13 +113,15 @@ class Listener(asdListener):
         if len(temp) != 0:
             type = temp[0][1]
 
+        # if no declared type then get type of value
+        if type == None:
+            type = value.type
 
         # if ID is not in self.variables
         if len(temp) == 0:
             # check if declared type matches value type
             if type in [VarType.INT8, VarType.INT16, VarType.INT32, VarType.INT64] and value.type in [VarType.INT8, VarType.INT16, VarType.INT32, VarType.INT64]:
                 print(value, value.name)
-            if type in self.int and value.type == VarType.INT:
                 bitlen = int(value.name).bit_length()
                 if type == VarType.INT8 and bitlen in range (8): # i8
                     self.generator.declare_i8(ID)
@@ -155,11 +157,6 @@ class Listener(asdListener):
                 self.variables.append((ID, value.type))
 
 
-        # if no declared type then get type of value
-        if type == None:
-            type = value.type
-
-        print(type, value.type)
         if value.name[0] == '%' and type != value.type:
             if type == VarType.REAL32 and value.type == VarType.REAL64:
                 self.generator.double_to_float("%"+str(self.generator.reg-1))
