@@ -239,6 +239,7 @@ class Listener(asdListener):
             elif _type == VarType.REAL64:
                 self.generator.printf_double(ID)
             elif _type == 'bool' or _type == VarType.BOOL:
+
                 self.generator.printf_bool(ID)
             else:
                 print("Line: " + str(ctx.start.line) + ", unknown variable type")
@@ -539,6 +540,8 @@ class Listener(asdListener):
             return 'float'
         elif varTp == VarType.REAL64:
             return 'double'
+        elif varTp == VarType.BOOL:
+            return 'i1'
 
 
     # Exit a parse tree produced by asdParser#id.

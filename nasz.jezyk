@@ -1,4 +1,4 @@
-x:f64=0.0
-y:i64=14
-x=y/x
+y = true
+z = false
+x =  y or z  
 print(x)
