@@ -158,6 +158,14 @@ class LLVMgenerator:
         self.main_text += "%" + str(self.reg) + " = fptrunc double " + str(id) + " to float\n"
         self.reg += 1
 
+    def real_to_int(self, id, cur_type, target_type):
+        self.main_text += "%" + str(self.reg) + " = fptosi " + str(cur_type) + " " + str(id) + " to " + str(target_type) + "\n"
+        self.reg += 1
+
+    def int_to_real(self, id, cur_type, target_type):
+        self.main_text += "%" + str(self.reg) + " = uitofp " + str(cur_type) + " " + str(id) + " to " + str(target_type) + "\n"
+        self.reg += 1
+
 ########## DECLARE ################
     # declare boolean
     def declare_bool(self, id):

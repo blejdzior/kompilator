@@ -26,6 +26,8 @@ class Listener(asdListener):
         self.stack = []
         self.int = ['i8', 'i16', 'i32', 'i64']
         self.float = ['f32', 'f64']
+        self.ints = [VarType.INT8, VarType.INT16, VarType.INT32, VarType.INT64]
+        self.floats = [VarType.REAL32, VarType.REAL64]
 
     # Enter a parse tree produced by asdParser#prog.
     def enterProg(self, ctx:asdParser.ProgContext):
@@ -49,6 +51,20 @@ class Listener(asdListener):
     def exitAdd(self, ctx:asdParser.AddContext):
         b = self.stack.pop()
         a = self.stack.pop()
+
+        if a.type == VarType.BOOL or b.type == VarType.BOOL:
+            raise Exception(ctx.start.line, "Bool is not addable")
+
+        if (a.type in self.floats) != (b.type in self.floats):
+            if a.type in self.ints:
+                self.generator.int_to_real(a.name, self.getTypeStr(a.type), 'double')
+                a.name = '%' + str(self.generator.reg - 1)
+                a.type = VarType.REAL64
+            elif b.type in self.ints:
+                self.generator.int_to_real(b.name, self.getTypeStr(b.type), 'double')
+                b.type = VarType.REAL64
+                b.name = '%' + str(self.generator.reg - 1)
+
 
         if a.type != VarType.INT64 and a.type != VarType.REAL64:
             if a.type.value < VarType.INT64.value:
@@ -120,7 +136,7 @@ class Listener(asdListener):
         # if ID is not in self.variables
         if len(temp) == 0:
             # check if declared type matches value type
-            if type in [VarType.INT8, VarType.INT16, VarType.INT32, VarType.INT64] and value.type in [VarType.INT8, VarType.INT16, VarType.INT32, VarType.INT64]:
+            if type in self.ints and value.type in self.ints:
                 print(value, value.name)
                 bitlen = int(value.name).bit_length()
                 if type == VarType.INT8 and bitlen in range (8): # i8
@@ -134,7 +150,7 @@ class Listener(asdListener):
                 else:
                     print("Line: " + str(ctx.start.line) + ", integer number is too large to write to " + str(type))
                     return
-            elif type in [VarType.REAL32, VarType.REAL64] and value.type in [VarType.REAL32, VarType.REAL64]:
+            elif type in self.floats and value.type in self.floats:
                 if type == VarType.REAL32: # f32
                     self.generator.declare_float32(ID)
                 elif type == VarType.REAL64: # f64
@@ -158,14 +174,19 @@ class Listener(asdListener):
 
 
         if value.name[0] == '%' and type != value.type:
-            if type == VarType.REAL32 and value.type == VarType.REAL64:
+            if type in self.ints and value.type in self.floats:
+                self.generator.real_to_int("%"+str(self.generator.reg-1), self.getTypeStr(value.type), self.getTypeStr(type))
+            elif type in self.floats and value.type in self.ints:
+                self.generator.int_to_real("%"+str(self.generator.reg-1), self.getTypeStr(value.type), self.getTypeStr(type))
+            elif type == VarType.REAL32 and value.type == VarType.REAL64:
                 self.generator.double_to_float("%"+str(self.generator.reg-1))
             elif type.value > value.type.value:
                 self.generator.increase_type("%"+str(self.generator.reg-1), self.getTypeStr(value.type), self.getTypeStr(type))
-                value.name = "%"+str(self.generator.reg-1)
             elif type.value < value.type.value:
                 self.generator.decrease_type("%"+str(self.generator.reg-1), self.getTypeStr(value.type), self.getTypeStr(type))
-                value.name = "%"+str(self.generator.reg-1)
+
+            value.name = "%"+str(self.generator.reg-1)
+
 
 
         if type == VarType.INT8:
