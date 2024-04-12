@@ -138,8 +138,25 @@ class LLVMgenerator:
         self.main_text += "%" + str(self.reg) + " = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strhhd, i32 0, i32 0), i8* %" + id + ")\n"
         self.reg += 1
 
+########## LOAD ################
 
-    
+    def load(self, id, type):
+        self.main_text += "%" + str(self.reg) + " = load " + str(type) + ", ptr " + str(id) + "\n"
+        self.reg += 1
+
+########## CHANGE_TYPE ################
+
+    def increase_type(self, id, cur_type, target_type):
+        self.main_text += "%" + str(self.reg) + " = sext " + str(cur_type) + " " + str(id) + " to " + str(target_type) + "\n"
+        self.reg += 1
+
+    def decrease_type(self, id, cur_type, target_type):
+        self.main_text += "%" + str(self.reg) + " = trunc " + str(cur_type) + " " + str(id) + " to " + str(target_type) + "\n"
+        self.reg += 1
+
+    def double_to_float(self, id):
+        self.main_text += "%" + str(self.reg) + " = fptrunc double " + str(id) + " to float\n"
+        self.reg += 1
 
 ########## DECLARE ################
     # declare boolean
@@ -424,7 +441,12 @@ class LLVMgenerator:
 
 
 ######## ARITHMETIC OPERATIONS ###########
-    def add_i32(self, value1, value2):
+    
+    def add_i64(self, value1, value2):
+        self.main_text += "%" + str(self.reg) + " = add i64 " + str(value1) + ", " + str(value2) + "\n"
+        self.reg += 1
+
+    def add_i32(self, value1, value2)
         self.main_text += "%" + str(self.reg) + " = add i32 " + str(value1) + ", " + str(value2) + "\n"
         self.reg += 1
 

@@ -1,3 +1,1 @@
-x = false
-z = neg x and true 
-print(z)
+
