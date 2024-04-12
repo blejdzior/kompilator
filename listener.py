@@ -258,26 +258,20 @@ class Listener(asdListener):
             print("Line " + str(ctx.start.line) + ", unknown variable: " + str(ID))
             return
         _type = temp[0][1]
-        if _type == VarType.INT:
+        if _type == VarType.INT8:
+            self.generator.scanf_int8(ID)
+        elif _type == VarType.INT16:
+            self.generator.scanf_int16(ID)
+        elif _type == VarType.INT32:
             self.generator.scanf_int32(ID)
-        elif _type == VarType.REAL:
+        elif _type == VarType.INT64:
+            self.generator.scanf_int64(ID)
+        elif _type == VarType.REAL32:
+            self.generator.scanf_float32(ID)
+        elif _type == VarType.REAL64:
             self.generator.scanf_double(ID)
         elif _type == 'bool' or _type == VarType.BOOL:
             self.generator.scanf_bool(ID)
-        elif _type in self.int:
-            if _type == 'i8':
-                self.generator.scanf_int8(ID)
-            elif _type == 'i16':
-                self.generator.scanf_int16(ID)
-            elif _type == 'i32':
-                self.generator.scanf_int32(ID)
-            elif _type == 'i64':
-                self.generator.scanf_int64(ID)
-        elif _type in self.float:
-            if _type == 'f32':
-                self.generator.scanf_float32(ID)
-            elif _type == 'f64':
-                self.generator.scanf_double(ID)
         else:
             print("Line: " + str(ctx.start.line) + ", unknown variable type")
 
