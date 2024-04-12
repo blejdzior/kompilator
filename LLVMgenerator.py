@@ -16,7 +16,7 @@ class LLVMgenerator:
         id = str(id)
         self.main_text += "%"+ str(self.reg) +" = load i8*, i8** %"+id+"\n"
         self.reg += 1      
-        self.main_text += "%"+ str(self.reg) +" = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strps, i32 0, i32 0), i8* %"+(reg-1)+")\n"
+        self.main_text += "%"+ str(self.reg) +" = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strps, i32 0, i32 0), i8* %"+str(self.reg-1)+")\n"
         self.reg += 1
 
     # prints 'true' for value==1 and 'false' for value==0
@@ -92,15 +92,15 @@ class LLVMgenerator:
     
 ######### scanf ###########
 
-    def scanf_string(self, id, l=10):
+    def scanf_string(self, id, l=16):
         self.allocate_string("str"+str(self.str), l)
         id = str(id)
-        self.main_text += "%"+ id +" = alloca i8*\n"
+        # self.main_text += "%"+ id +" = alloca i8*\n"
         self.main_text += "%"+str(self.reg)+" = getelementptr inbounds ["+str(l+1)+" x i8], ["+str(l+1)+" x i8]* %str"+str(self.str)+", i64 0, i64 0\n"
         self.reg += 1
         self.main_text += "store i8* %"+str(self.reg-1)+", i8** %"+id+"\n"
         self.str += 1
-        self.main_text += "%"+str(self.reg)+" = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @strs, i32 0, i32 0), i8* %"+str(self.reg-1)+")\n"
+        self.main_text += "%"+str(self.reg)+" = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @strss, i32 0, i32 0), i8* %"+str(self.reg-1)+")\n"
         self.reg += 1
 
 
@@ -522,7 +522,6 @@ class LLVMgenerator:
         self.main_text += "%" + str(self.reg) + " = mul i64 " + str(val1) + ", " + str(val2) + "\n"
         self.reg += 1
 
-
     def mult_double(self, val1, val2):
         self.main_text += "%" + str(self.reg) + " = fmul double " + str(val1) + ", " + str(val2) + "\n"
         self.reg += 1
@@ -543,9 +542,11 @@ class LLVMgenerator:
         text = "\n\n\n"
         text += "declare i32 @printf(ptr, ...)\n"
         text += "declare i32 @__isoc99_scanf(i8*, ...)\n"
+        text += "declare void @llvm.memcpy.p0i8.p0i8.i64(i8* noalias nocapture writeonly, i8* noalias nocapture readonly, i64, i1 immarg)\n"
         text += "@strpi = constant [4 x i8] c\"%d\\0A\\00\"\n"
         text += "@strpd = constant [4 x i8] c\"%f\\0A\\00\"\n"
         text += "@strs = constant [3 x i8] c\"%d\\00\"\n"
+        text += "@strss = constant [5 x i8] c\"%10s\\00\"\n"
         text += "@strf = constant [3 x i8] c\"%f\\00\"\n"
         text += "@strpl = constant [5 x i8] c\"%lld\\00\"\n"
         text += "@strlf = constant [4 x i8] c\"%lf\\00\"\n"
@@ -553,6 +554,7 @@ class LLVMgenerator:
         text += "@strhd = constant [4 x i8] c\"%hd\\00\"\n"
         text += "@trueStr = constant [5 x i8] c\"true\\00\"\n"
         text += "@falseStr = constant [6 x i8] c\"false\\00\"\n"
+        text += "@strps = constant [4 x i8] c\"%s\\0A\\00\"\n"
         text += self.header_text
         text += "define i32 @main() nounwind{\n"
         text += self.main_text
