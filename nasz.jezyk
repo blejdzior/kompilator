@@ -1,3 +1,4 @@
-x = false
-z = neg x and true 
-print(z)
+y = true
+z = false
+x =  y or z  
+print(x)
