@@ -6,11 +6,19 @@ class LLVMgenerator:
         self.main_text = ""
         self.reg = 1
         self.label_count = 0
+        self.str = 1
 
 
     
 
 ############ printf ###############
+    def printf_string(self, id):
+        id = str(id)
+        self.main_text += "%"+ str(self.reg) +" = load i8*, i8** %"+id+"\n"
+        self.reg += 1      
+        self.main_text += "%"+ str(self.reg) +" = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strps, i32 0, i32 0), i8* %"+(reg-1)+")\n"
+        self.reg += 1
+
     # prints 'true' for value==1 and 'false' for value==0
     def printf_bool(self, id):
         id = str(id)
@@ -83,6 +91,20 @@ class LLVMgenerator:
         self.reg += 1
     
 ######### scanf ###########
+
+    def scanf_string(self, id, l=10):
+        self.allocate_string("str"+str(self.str), l)
+        id = str(id)
+        self.main_text += "%"+ id +" = alloca i8*\n"
+        self.main_text += "%"+str(self.reg)+" = getelementptr inbounds ["+str(l+1)+" x i8], ["+str(l+1)+" x i8]* %str"+str(self.str)+", i64 0, i64 0\n"
+        self.reg += 1
+        self.main_text += "store i8* %"+str(self.reg-1)+", i8** %"+id+"\n"
+        self.str += 1
+        self.main_text += "%"+str(self.reg)+" = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @strs, i32 0, i32 0), i8* %"+str(self.reg-1)+")\n"
+        self.reg += 1
+
+
+
     # takes integer input, if input == 0 then false else true
     def scanf_bool(self, boolVar):
         # Assuming boolVar is the name of the variable where the boolean value will be stored.
@@ -167,6 +189,27 @@ class LLVMgenerator:
         self.reg += 1
 
 ########## DECLARE ################
+    def declare_string(self, id):
+        self.main_text += "%"+str(id)+" = alloca i8*\n"
+    
+    def allocate_string(self, id, l):
+        self.main_text += "%"+str(id)+" = alloca ["+str(l+1)+" x i8]\n"
+    
+    def constant_string(self, content):
+        l = len(content)+1;     
+        l = str(l)
+        self.header_text += "@str"+str(self.str)+" = constant ["+l+" x i8] c\""+content+"\\00\"\n"
+        n = "str"+str(self.str)
+        self.allocate_string(n, int(l)-1)
+        self.main_text += "%"+str(self.reg)+" = bitcast ["+l+" x i8]* %"+n+" to i8*\n"
+        self.main_text += "call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %"+str(self.reg)+", i8* align 1 getelementptr inbounds (["+l+" x i8], ["+l+" x i8]* @"+n+", i32 0, i32 0), i64 "+l+", i1 false)\n"
+        self.reg += 1
+        self.main_text += "%ptr"+n+" = alloca i8*\n"
+        self.main_text += "%"+str(self.reg)+" = getelementptr inbounds ["+l+" x i8], ["+l+" x i8]* %"+n+", i64 0, i64 0\n"
+        self.reg += 1
+        self.main_text += "store i8* %"+str(self.reg-1)+", i8** %ptr"+n+"\n"
+        self.str += 1
+   
     # declare boolean
     def declare_bool(self, id):
         self.main_text += "%" + str(id) + " = alloca i1\n"
@@ -196,6 +239,11 @@ class LLVMgenerator:
         self.main_text += "%" + str(id) + " = alloca double\n"
     
 ########## ASSIGN ############
+
+    def assign_string(self, id, value):
+        self.main_text += "store i8* %"+str(self.reg-1)+", i8** %"+str(id)+"\n"
+   
+
     # assign boolean value
     def assign_bool(self, id, value):
         # if isinstance(value, int):
@@ -462,16 +510,16 @@ class LLVMgenerator:
         self.main_text += "%" + str(self.reg) + " = fadd double " + str(value1) + ", " + str(value2) + "\n"
         self.reg += 1
 
-    def sub_i32(self, value1, value2):
-        self.main_text += "%" + str(self.reg) + " = sub i32 " + str(value1) + ", " + str(value2) + "\n"
+    def sub_i64(self, value1, value2):
+        self.main_text += "%" + str(self.reg) + " = sub i64 " + str(value1) + ", " + str(value2) + "\n"
         self.reg += 1
 
     def sub_double(self, value1, value2):
         self.main_text += "%" + str(self.reg) + " = fsub double " + str(value1) + ", " + str(value2) + "\n"
         self.reg += 1
 
-    def mult_i32(self, val1, val2):
-        self.main_text += "%" + str(self.reg) + " = mul i32 " + str(val1) + ", " + str(val2) + "\n"
+    def mult_i64(self, val1, val2):
+        self.main_text += "%" + str(self.reg) + " = mul i64 " + str(val1) + ", " + str(val2) + "\n"
         self.reg += 1
 
 
@@ -480,8 +528,8 @@ class LLVMgenerator:
         self.reg += 1
 
 
-    def div_i32(self, val1, val2):
-        self.main_text += "%" + str(self.reg) + " = sdiv i32 " + str(val1) + ", " + str(val2) + "\n"
+    def div_i64(self, val1, val2):
+        self.main_text += "%" + str(self.reg) + " = sdiv i64 " + str(val1) + ", " + str(val2) + "\n"
         self.reg += 1
 
 

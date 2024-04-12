@@ -16,6 +16,7 @@ class VarType(Enum):
     REAL32 = 5
     REAL64 = 6
     BOOL = 7
+    STRING = 8
 
 
 class Listener(asdListener):
@@ -117,6 +118,8 @@ class Listener(asdListener):
                 type = VarType.REAL64
             elif type == 'bool':
                 type = VarType.BOOL
+            elif type == 'str':
+                type = VarType.STRING
         except AttributeError:
             type = None
 
@@ -157,11 +160,15 @@ class Listener(asdListener):
                     self.generator.declare_double(ID)
             elif type == 'bool' or type == VarType.BOOL or value.type == VarType.BOOL:
                 self.generator.declare_bool(ID)
+            elif type == VarType.STRING:
+                self.generator.declare_string(ID)
             elif type == None:  # no declared type
                 if value.type == VarType.INT32:
                     self.generator.declare_i32(ID)
                 elif value.type == VarType.REAL64:
                     self.generator.declare_double(ID)
+                elif value.type == VarType.STRING:
+                    self.generator.declare_string(ID)
 
             else:
                 print("Line: " + str(ctx.start.line) + ", VarType and ValueType mismatch", type, value.type)
@@ -209,6 +216,8 @@ class Listener(asdListener):
                 self.generator.assign_bool(ID, 0)
             else:
                 self.generator.assign_bool(ID, value.name)
+        elif type == VarType.STRING:
+            self.generator.assign_string(ID, value.name)
 
     def exitReal(self, ctx: asdParser.RealContext):
         self.stack.append(Value(ctx.REAL().symbol.text, VarType.REAL64))
@@ -219,6 +228,13 @@ class Listener(asdListener):
     def exitBool(self, ctx: asdParser.BoolContext):
         self.stack.append(Value(ctx.BOOL().symbol.text, VarType.BOOL))
 
+    def exitString(self, ctx: asdParser.StringContext):
+        self.stack.append(Value(ctx.STRING().symbol.text, VarType.STRING) )
+        tmp = ctx.STRING().getText()
+        content = tmp[1:-1]
+        self.generator.constant_string(content)
+        n = "ptrstr"+str(self.generator.str-1)
+        self.stack.append(Value(n, VarType.STRING))
     # Exit a parse tree produced by asdParser#print.
     def exitPrint(self, ctx: asdParser.PrintContext):
         ID = ctx.value().ID().symbol.text
@@ -240,6 +256,9 @@ class Listener(asdListener):
             elif _type == 'bool' or _type == VarType.BOOL:
 
                 self.generator.printf_bool(ID)
+            elif _type == VarType.STRING:
+                print("print string")
+                self.generator.printf_string(ID)
             else:
                 print("Line: " + str(ctx.start.line) + ", unknown variable type")
         else:
@@ -271,6 +290,8 @@ class Listener(asdListener):
             self.generator.scanf_double(ID)
         elif _type == 'bool' or _type == VarType.BOOL:
             self.generator.scanf_bool(ID)
+        elif _type == VarType.STRING:
+            self.generator.scanf_string(ID)
         else:
             print("Line: " + str(ctx.start.line) + ", unknown variable type")
 
@@ -532,6 +553,8 @@ class Listener(asdListener):
             return 'double'
         elif varTp == VarType.BOOL:
             return 'i1'
+        elif varTp == VarType.STRING:
+            return 'i8*'
 
     # Exit a parse tree produced by asdParser#id.
     def exitId(self, ctx: asdParser.IdContext):

@@ -29,6 +29,7 @@ value: INT #int
      | REAL #real
      | ID   #id
      | BOOL #bool
+     | STRING #string
      ;
 type: 'i8'
     | 'i16'
@@ -37,6 +38,7 @@ type: 'i8'
     | 'f64'
     | 'f32'
     | 'bool'
+    | 'str'
     ;
 
 
@@ -55,6 +57,7 @@ ADD     : '+';
 MULT    : '*';
 DIV     : '/';
 SUB     : '-';
-
+STRING : '"' [a-zA-Z0-9 \t\n*+-]+ '"';
+        
 
 
