@@ -1,8 +1,8 @@
 grammar asd;
 prog:  expr*  EOF ;
 expr: value ADD value #add
-    | var '=' (value | expr) #assign
     | var '=' arrAss #arrayAssign
+    | var '=' (value | expr) #assign
     | PRINT '(' value ')' #print
     | READ '(' ID ')' #read
     | value MULT value #mult
@@ -15,7 +15,7 @@ booleanOperation: andOp # and
                 | xorOp # xor
                 | negOp # neg
                 ;
-arrAss: '[' value (',' value)* ']';
+arrAss: '[' value (',' value)* ']' # array;
 andOp: value AND (value | booleanOperation);
 orOp : value OR (value | booleanOperation);
 xorOp: value XOR (value |  booleanOperation);
@@ -32,7 +32,7 @@ value: INT #int
      | ID ('[' INT ']')* #id_arr
      | BOOL #bool
      | STRING #string
-     | arrAss # array
+     | arrAss # arAss_1
      ;
 type: 'i8'
     | 'i16'
