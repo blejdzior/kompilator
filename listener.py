@@ -18,6 +18,7 @@ class VarType(Enum):
     BOOL = 7
     STRING = 8
     ARRAY = 9
+    MATRIX = 10
 
 
 class Listener(asdListener):
@@ -42,9 +43,6 @@ class Listener(asdListener):
         f.write(result)
         f.close()
 
-    # Enter a parse tree produced by asdParser#add.
-    def enterAdd(self, ctx: asdParser.AddContext):
-        pass
 
     # Exit a parse tree produced by asdParser#add.
     def exitAdd(self, ctx: asdParser.AddContext):
@@ -94,10 +92,25 @@ class Listener(asdListener):
             self.stack.append(Value("%" + str(self.generator.reg - 1), VarType.REAL64))
             self.variables.append((str(self.generator.reg - 1), VarType.REAL64))
 
-    # Enter a parse tree produced by asdParser#assign.
-    def enterAssign(self, ctx: asdParser.AssignContext):
-        pass
-    
+    def exitMatrixAccess(self, ctx: asdParser.MatrixAccessContext):
+        ID = ctx.ID().symbol.text
+        indexes = (ctx.INT(0).symbol.text, ctx.INT(1).symbol.text)
+        temp = [(x, y) for x, y in self.variables if x == ID]
+        matrix_type, type, rows, cols = temp[0][1]
+        if int(indexes[0]) >= rows or int(indexes[1]) >= cols:
+            print(f"Line: {ctx.start.line}, index out of range")
+            return
+        if len(temp) == 0 or matrix_type != VarType.MATRIX:
+            print(f"Line: {ctx.start.line}, variable {ID} not declared")
+            return      
+             
+        self.generator.matrix_access(ID, indexes, type=type, rows=rows, cols=cols)
+
+        type = self.string_to_type(type)
+
+        self.stack.append(Value("%" + str(self.generator.reg - 1), type))
+
+
     def exitArrayAccess(self, ctx: asdParser.ArrayAccessContext):
         ID = ctx.ID().symbol.text
         index = ctx.INT().symbol.text
@@ -113,20 +126,8 @@ class Listener(asdListener):
     
         self.generator.array_access(ID, index, type=type, size=size)
 
-        if type == 'i8':
-            type = VarType.INT8
-        elif type == 'i16':
-            type = VarType.INT16
-        elif type == 'i32':
-            type = VarType.INT32
-        elif type == 'i64':
-            type = VarType.INT64
-        elif type == 'float':
-            type = VarType.REAL32
-        elif type == 'double':
-            type = VarType.REAL64
-        elif type == 'i1':
-            type = VarType.BOOL
+        type = self.string_to_type(type)
+
         self.stack.append(Value("%" + str(self.generator.reg - 1), type))
 
     def exitElementAssign(self, ctx: asdParser.ElementAssignContext):
@@ -145,7 +146,81 @@ class Listener(asdListener):
         value = self.stack.pop()
         self.generator.element_assign(ID, index, value.name, type=type, size=size)
 
+    def exitMatrixAssign(self, ctx: asdParser.MatrixAssignContext):
+        ID = ctx.var().ID().symbol.text
+        try:
+            type = ctx.var().type_().getText()
+            print(type)
+            if type == 'i8':
+                type = VarType.INT8
+            elif type == 'i16':
+                type = VarType.INT16
+            elif type == 'i32':
+                type = VarType.INT32
+            elif type == 'i64':
+                type = VarType.INT64
+            elif type == 'f32':
+                type = VarType.REAL32
+            elif type == 'f64':
+                type = VarType.REAL64
+            elif type == 'bool':
+                type = VarType.BOOL
+            elif type == 'str':
+                type = VarType.STRING
+        except AttributeError:
+            type = None
+
+        temp = [(x, y) for x, y in self.variables if x == ID]
+        if len(temp) != 0:
+            if type  != temp[0][1][1]:
+                type = temp[0][1][1]
+                type = self.string_to_type(type)
+
+        matrix = self.stack.pop()
+        if matrix.type != VarType.MATRIX:
+            print("Line: " + str(ctx.start.line) + "Variable not of type matrix") 
+            return
         
+        if matrix.name == 0:
+            print("Line: " + str(ctx.start.line) + ", matrix cannot be initialized without values")
+            return
+
+        if type == None:
+            try:
+                type = self.stack[-2].type
+            except IndexError:
+                print(f"Line: {ctx.start.line}, array cannot be initialized without values")
+                return
+        if type == VarType.STRING:
+            print(f"Line: {ctx.start.line}, array cannot be initialized with string")
+            return        
+        rows = matrix.name # number of matrix lines
+        cols = self.stack[-1].name # number of elements of first line in matrix
+        lines = []
+        for i in range(rows):
+            arr = self.stack.pop()
+            if arr.name != cols:
+                print(f"Line: {ctx.start.line}, all rows must have the same number of elements")
+                return
+            values = [] 
+            for j in range(arr.name): #for assignment arr.name holds number of elements in array
+                v = self.stack.pop()
+                if v.type != type:
+                    print(f"Line: {ctx.start.line}, all values in array must be of same type {type} but found {v.type}")
+                    exit()
+                values.append(v.name)
+            values.reverse()
+            lines.append(values)
+        lines.reverse()
+        
+        type = self.type_to_string(type)
+
+        if len(temp) == 0:
+            self.generator.declare_matrix(ID, type = type, rows = rows, cols = cols)
+            self.variables.append((ID, (matrix.type, type, rows, cols)))
+        
+        self.generator.assign_matrix(ID, type = type, rows = rows, cols = cols, lines = lines)
+
 
 
 
@@ -177,6 +252,8 @@ class Listener(asdListener):
         if len(temp) != 0:
             if type  != temp[0][1][1]:
                 type = temp[0][1][1]
+                type = self.string_to_type(type)
+
 
         arr = self.stack.pop()
         if arr.type != VarType.ARRAY:
@@ -206,20 +283,7 @@ class Listener(asdListener):
             values.append(v.name)
         values.reverse()
 
-        if type == VarType.INT8:
-            type = 'i8'
-        elif type == VarType.INT16:
-            type = 'i16'
-        elif type == VarType.INT32:
-            type = 'i32'
-        elif type == VarType.INT64:
-            type = 'i64'
-        elif type == VarType.REAL32:
-            type = 'float'
-        elif type == VarType.REAL64:
-            type = 'double'
-        elif type == VarType.BOOL:
-            type = 'i1'
+        type = self.type_to_string(type)
 
         if len(temp) == 0:
             self.generator.declare_array(ID, type = type, size = arr.name)
@@ -375,6 +439,38 @@ class Listener(asdListener):
 
         self.stack.append(Value(i, VarType.ARRAY))
 
+    def exitMatrixLine(self, ctx: asdParser.MatrixLineContext):
+        i = 0
+        for value in ctx.value():
+            i += 1
+        self.stack.append(Value(i ,VarType.ARRAY))
+    
+    def exitMatrix(self, ctx: asdParser.MatrixContext):
+        i = 0
+        for value in ctx.matLine():
+            i += 1
+        self.stack.append(Value(i, VarType.MATRIX))
+    
+    def string_to_type(self, string):
+        if string == "i8":
+            return VarType.INT8
+        elif string == "i16":
+            return VarType.INT16
+        elif string == "i32":
+            return VarType.INT32
+        elif string == "i64":
+            return VarType.INT64
+        elif string == "float":
+            return VarType.REAL32
+        elif string == "double":
+            return VarType.REAL64
+        elif string == 'bool' or string == VarType.BOOL:
+            return VarType.BOOL
+        else:
+            return string
+
+
+
     def type_to_string(self, type):
         if type == VarType.INT8:
             return "i8"
@@ -391,7 +487,7 @@ class Listener(asdListener):
         elif type == 'bool' or type == VarType.BOOL:
             return "i1"
 
-
+        
 
     
     # Exit a parse tree produced by asdParser#print.
@@ -408,6 +504,13 @@ class Listener(asdListener):
                     _type = v.type
                     __type = self.type_to_string(_type)
                     # have to transform variable created by generator.arrayAccess to ptr type
+                    self.generator.printf_array_element(ID, __type)
+                    ID = str(self.generator.reg - 1)
+                elif _type[0] == VarType.MATRIX:
+                    v = self.stack.pop()
+                    ID = v.name[1:]
+                    _type = v.type
+                    __type = self.type_to_string(_type)
                     self.generator.printf_array_element(ID, __type)
                     ID = str(self.generator.reg - 1)
             except:

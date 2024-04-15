@@ -198,6 +198,8 @@ class LLVMgenerator:
         # self.header_text += f"%Array{self.array} = type  {{ [{size} x {type}]}}"
         self.main_text += f"%{id} = alloca [{size} x {type}]\n"
 
+    def declare_matrix(self, id, type, rows, cols):
+        self.main_text += f"%{id} = alloca [{rows} x <{cols} x {type}>]\n"
 
     def declare_string(self, id):
         self.main_text += "%"+str(id)+" = alloca i8*\n"
@@ -249,7 +251,31 @@ class LLVMgenerator:
         self.main_text += "%" + str(id) + " = alloca double\n"
     
 ########## ASSIGN ############
-    
+
+
+    def assign_matrix(self, id, type, rows, cols, lines):
+        for i in range(rows):
+            self.main_text += f"%{self.reg} = getelementptr inbounds [ {rows} x <{cols} x {type}>], ptr %{id}, i64 0, i64 {i}\n"
+            temp = self.reg
+            self.reg += 1
+            self.main_text += f"%{self.reg} = load <{cols} x {type}>, ptr %{self.reg - 1}\n"
+            self.reg += 1
+            for j in range(cols):
+                self.main_text += f"%{self.reg} = insertelement <{cols} x {type}> %{self.reg - 1}, {type} {lines[i][j]}, i32 {j}\n"
+                self.reg += 1
+            self.main_text += f"store <{cols} x {type} > %{self.reg - 1}, ptr %{temp}\n"
+
+    def matrix_access(self, id, indexes, type, rows, cols):
+        row_index = indexes[0]
+        col_index = indexes[1]
+        self.main_text += f"%{self.reg} = getelementptr inbounds [{rows} x <{cols} x {type} >], ptr %{id}, i64 0, i64 {row_index}\n"
+        self.reg += 1
+        self.main_text += f"%{self.reg} = load <{cols} x {type}>, ptr %{self.reg - 1}\n"
+        self.reg += 1
+        self.main_text += f"%{self.reg} = extractelement <{cols} x {type}> %{self.reg-1}, i64 {col_index}\n"
+        self.reg += 1
+
+
     def array_access(self, id, index, type, size):
         self.main_text += f"%{self.reg} = getelementptr inbounds[{size} x {type}], ptr %{id}, i64 0, i64 {index}\n"
         self.reg += 1
