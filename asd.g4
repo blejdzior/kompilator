@@ -1,7 +1,7 @@
 grammar asd;
 prog:  expr*  EOF ;
 expr: value ADD value #add
-    | value '=' matAss #matrixAssign
+    | var '=' matAss #matrixAssign
     | var '=' arrAss #arrayAssign
     | var '=' (value | expr) #assign
     | ID ('[' INT ']') '=' (value | expr) #elementAssign
