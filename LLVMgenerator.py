@@ -560,6 +560,36 @@ class LLVMgenerator:
         self.main_text += "br label %false"+ str(b) +"\n"
         self.main_text += "false" + str(b) + ":\n"
 
+##################  REPEAT  ###############
+
+    def repeatstart(self, repetitions):
+        self.declare_i32(self.reg)
+        counter = self.reg
+        self.reg += 1
+        self.assign_i32(counter, 0)
+        self.br += 1
+        self.main_text += "br label %cond"+ str(self.br) +"\n"
+        self.main_text += "cond"+ str(self.br) +":\n"
+
+        self.load("%"+str(counter), 'i32')
+        self.add_i32("%"+str(self.reg-1), 1)
+        self.assign_i32(counter, "%"+str(self.reg-1))
+
+        self.main_text += "%"+ str(self.reg) +" = icmp slt i32 %"+ str(self.reg-2) +", "+ str(repetitions) + "\n"
+        self.reg += 1
+
+        self.main_text += "br i1 %"+ str(self.reg-1)+", label %true"+ str(self.br) +", label %false"+ str(self.br) +"\n"
+        self.main_text += "true"+ str(self.br)+":\n"
+        self.brstack.append(self.br)
+
+
+    def repeatend(self):
+        b = self.brstack.pop()
+        self.main_text += "br label %cond"+ str(b) +"\n"
+        self.main_text += "false"+ str(b) +":\n"
+
+
+
 
     def generate(self):
         text = "\n\n\n"

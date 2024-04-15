@@ -545,6 +545,22 @@ class Listener(asdListener):
           raise Exception("Line " + str(ctx.start.line) + ", unknown variable: "+ str(ID))
 
 
+    # Exit a parse tree produced by asdParser#repsNr.
+    def exitRepsNr(self, ctx:asdParser.RepsNrContext):
+        if ctx.ID() is None:
+            value = ctx.INT().getText()
+        else:
+            ID = '%' + ctx.ID().getText()
+            self.generator.load(ID, 'i32')
+            value = '%' + str(self.generator.reg - 1)
+
+        self.generator.repeatstart(value)
+
+
+    # Exit a parse tree produced by asdParser#blockwhile.
+    def exitBlockwhile(self, ctx:asdParser.BlockwhileContext):
+        self.generator.repeatend()
+
     # Enter a parse tree produced by asdParser#value.
     def enterValue(self, ctx: asdParser.ValueContext):
         pass

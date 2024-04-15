@@ -9,8 +9,11 @@ expr: value ADD value #add
     | value SUB value #sub
     | booleanOperation # booleanOp
     | IF '(' equal ')' '{' blockif '}' #if
+    | REPEAT repsNr '{' blockwhile '}' #repeat
     ;
 
+repsNr: ID | INT;
+blockwhile: expr* ;
 equal: ID '==' INT;
 blockif: expr* ;
 
@@ -47,6 +50,7 @@ type: 'i8'
     ;
 
 IF      : 'if';
+REPEAT   : 'repeat';
 AND     : 'and';
 OR      : 'or';
 XOR     : 'xor';

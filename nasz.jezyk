@@ -1,5 +1,6 @@
-x = 2
-if ( x == 2 ) {
-    y = 4
-    print(y)
+x = 0
+y = 3
+repeat y {
+    x = x+1
+    print(x)
 }
