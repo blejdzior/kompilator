@@ -8,7 +8,12 @@ expr: value ADD value #add
     | value DIV value #div
     | value SUB value #sub
     | booleanOperation # booleanOp
+    | IF '(' equal ')' '{' blockif '}' #if
     ;
+
+equal: ID '==' INT;
+blockif: expr* ;
+
 booleanOperation: andOp # and
                 | orOp # or
                 | xorOp # xor
@@ -41,7 +46,7 @@ type: 'i8'
     | 'str'
     ;
 
-
+IF      : 'if';
 AND     : 'and';
 OR      : 'or';
 XOR     : 'xor';

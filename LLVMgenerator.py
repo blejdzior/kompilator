@@ -7,6 +7,8 @@ class LLVMgenerator:
         self.reg = 1
         self.label_count = 0
         self.str = 1
+        self.brstack = []
+        self.br = 0
 
 
     
@@ -536,6 +538,27 @@ class LLVMgenerator:
         self.main_text += "%" + str(self.reg) + " = fdiv double " + str(val1) + ", " + str(val2) + "\n"
         self.reg += 1
 
+
+#############  IF  ##################
+
+    def icmp(self, id, value):
+        self.main_text += "%"+ str(self.reg) +" = load i32, i32* %"+id+"\n"
+        self.reg += 1
+        self.main_text += "%"+ str(self.reg) + " = icmp eq i32 %" + str(self.reg-1) + ", " + str(value) + "\n";
+        self.reg += 1
+
+
+    def ifstart(self):
+        self.br += 1
+        self.main_text += "br i1 %"+str(self.reg-1)+", label %true"+ str(self.br) +", label %false"+ str(self.br) +"\n"
+        self.main_text += "true"+ str(self.br) +":\n"
+        self.brstack.append(self.br)
+
+
+    def ifend(self):
+        b = self.brstack.pop()
+        self.main_text += "br label %false"+ str(b) +"\n"
+        self.main_text += "false" + str(b) + ":\n"
 
 
     def generate(self):

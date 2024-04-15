@@ -103,7 +103,6 @@ class Listener(asdListener):
         ID = ctx.var().ID().symbol.text
         try:
             type = ctx.var().type_().getText()
-            print(type)
             if type == 'i8':
                 type = VarType.INT8
             elif type == 'i16':
@@ -130,7 +129,6 @@ class Listener(asdListener):
         if len(temp) != 0:
             type = temp[0][1]
 
-        print(123, type)
         # if no declared type then get type of value
         if type == None:
             type = value.type
@@ -140,7 +138,6 @@ class Listener(asdListener):
         if len(temp) == 0:
             # check if declared type matches value type
             if type in self.ints and value.type in self.ints:
-                print(value, value.name)
                 bitlen = int(value.name).bit_length()
                 if type == VarType.INT8 and bitlen in range(8):  # i8
                     self.generator.declare_i8(ID)
@@ -527,6 +524,26 @@ class Listener(asdListener):
             self.generator.sub_double(a.name, b.name)
             self.stack.append(Value("%" + str(self.generator.reg - 1), VarType.REAL64))
             self.variables.append((str(self.generator.reg - 1), VarType.REAL64))
+
+
+    # Enter a parse tree produced by asdParser#blockif.
+    def enterBlockif(self, ctx: asdParser.BlockifContext):
+        self.generator.ifstart()
+
+    # Exit a parse tree produced by asdParser#blockif.
+    def exitBlockif(self, ctx: asdParser.BlockifContext):
+        self.generator.ifend()
+
+    # Exit a parse tree produced by asdParser#equal.
+    def exitEqual(self, ctx: asdParser.EqualContext):
+        ID = ctx.ID().getText()
+        INT = ctx.INT().getText()
+        temp = [(x, y) for x, y in self.variables if x == ID]
+        if len(temp) != 0:
+            self.generator.icmp(ID, INT)
+        else:
+          raise Exception("Line " + str(ctx.start.line) + ", unknown variable: "+ str(ID))
+
 
     # Enter a parse tree produced by asdParser#value.
     def enterValue(self, ctx: asdParser.ValueContext):
