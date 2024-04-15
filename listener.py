@@ -98,13 +98,134 @@ class Listener(asdListener):
     def enterAssign(self, ctx: asdParser.AssignContext):
         pass
     
+    def exitArrayAccess(self, ctx: asdParser.ArrayAccessContext):
+        ID = ctx.ID().symbol.text
+        index = ctx.INT().symbol.text
+        temp = [(x, y) for x, y in self.variables if x == ID]
+        arr_type, type, size = temp[0][1]
+        if int(index) >= size:
+            print(f"Line: {ctx.start.line}, index out of range")
+            return
+
+        if len(temp) == 0 or arr_type != VarType.ARRAY:
+            print(f"Line: {ctx.start.line}, variable {ID} not declared")
+            return
+    
+        self.generator.array_access(ID, index, type=type, size=size)
+
+        if type == 'i8':
+            type = VarType.INT8
+        elif type == 'i16':
+            type = VarType.INT16
+        elif type == 'i32':
+            type = VarType.INT32
+        elif type == 'i64':
+            type = VarType.INT64
+        elif type == 'float':
+            type = VarType.REAL32
+        elif type == 'double':
+            type = VarType.REAL64
+        elif type == 'i1':
+            type = VarType.BOOL
+        self.stack.append(Value("%" + str(self.generator.reg - 1), type))
+
+    def exitElementAssign(self, ctx: asdParser.ElementAssignContext):
+        ID = ctx.ID().symbol.text
+        index = ctx.INT().symbol.text
+
+        temp = [(x, y) for x, y in self.variables if x == ID]
+        arr_type, type, size = temp[0][1]
+        if int(index) >= size:
+            print(f"Line: {ctx.start.line}, index out of range")
+            return
+        if len(temp) == 0 or arr_type != VarType.ARRAY:
+            print(f"Line: {ctx.start.line}, variable {ID} not declared")
+            return
+
+        value = self.stack.pop()
+        self.generator.element_assign(ID, index, value.name, type=type, size=size)
+
+        
+
+
 
     def exitArrayAssign(self, ctx: asdParser.ArrayAssignContext):
+        ID = ctx.var().ID().symbol.text
+        try:
+            type = ctx.var().type_().getText()
+            print(type)
+            if type == 'i8':
+                type = VarType.INT8
+            elif type == 'i16':
+                type = VarType.INT16
+            elif type == 'i32':
+                type = VarType.INT32
+            elif type == 'i64':
+                type = VarType.INT64
+            elif type == 'f32':
+                type = VarType.REAL32
+            elif type == 'f64':
+                type = VarType.REAL64
+            elif type == 'bool':
+                type = VarType.BOOL
+            elif type == 'str':
+                type = VarType.STRING
+        except AttributeError:
+            type = None
+
+        temp = [(x, y) for x, y in self.variables if x == ID]
+        if len(temp) != 0:
+            if type  != temp[0][1][1]:
+                type = temp[0][1][1]
+
         arr = self.stack.pop()
         if arr.type != VarType.ARRAY:
             print("Line: " + str(ctx.start.line) + "Variable not of type array") 
-        for i in range(arr.name): #for assignment arr.name holds number of elements in array
+        
+        if arr.name == 0:
+            print("Line: " + str(ctx.start.line) + ", array cannot be initialized without values")
+            return
 
+        if type == None:
+            try:
+                type = self.stack[-1].type
+            except IndexError:
+                print(f"Line: {ctx.start.line}, array cannot be initialized without values")
+                return
+        if type == VarType.STRING:
+            print(f"Line: {ctx.start.line}, array cannot be initialized with string")
+            return        
+        
+        # get all values in array
+        values = []
+        for i in range(arr.name): #for assignment arr.name holds number of elements in array
+            v = self.stack.pop()
+            if v.type != type:
+                print(f"Line: {ctx.start.line}, all values in array must be of same type {type} but found {v.type}")
+                exit()
+            values.append(v.name)
+        values.reverse()
+
+        if type == VarType.INT8:
+            type = 'i8'
+        elif type == VarType.INT16:
+            type = 'i16'
+        elif type == VarType.INT32:
+            type = 'i32'
+        elif type == VarType.INT64:
+            type = 'i64'
+        elif type == VarType.REAL32:
+            type = 'float'
+        elif type == VarType.REAL64:
+            type = 'double'
+        elif type == VarType.BOOL:
+            type = 'i1'
+
+        if len(temp) == 0:
+            self.generator.declare_array(ID, type = type, size = arr.name)
+            self.variables.append((ID, (arr.type, type, arr.name)))
+        
+        self.generator.assign_array(ID, type = type, size = arr.name, values = values)
 
 
     # Exit a parse tree produced by asdParser#assign.
@@ -251,7 +372,24 @@ class Listener(asdListener):
         i = 0
         for value in ctx.value():
             i += 1
+
         self.stack.append(Value(i, VarType.ARRAY))
+
+    def type_to_string(self, type):
+        if type == VarType.INT8:
+            return "i8"
+        elif type == VarType.INT16:
+            return "i16"
+        elif type == VarType.INT32:
+            return "i32"
+        elif type == VarType.INT64:
+            return 'i64'
+        elif type == VarType.REAL32:
+            return "float"
+        elif type == VarType.REAL64:
+            return "double"
+        elif type == 'bool' or type == VarType.BOOL:
+            return "i1"
 
 
 
@@ -260,8 +398,20 @@ class Listener(asdListener):
     def exitPrint(self, ctx: asdParser.PrintContext):
         ID = ctx.value().ID().symbol.text
         temp = [(x, y) for x, y in self.variables if x == ID]
+    
         if len(temp) != 0:
             _type = temp[0][1]
+            try:
+                if _type[0] == VarType.ARRAY:
+                    v = self.stack.pop()
+                    ID = v.name[1:]
+                    _type = v.type
+                    __type = self.type_to_string(_type)
+                    # have to transform variable created by generator.arrayAccess to ptr type
+                    self.generator.printf_array_element(ID, __type)
+                    ID = str(self.generator.reg - 1)
+            except:
+                pass
             if _type == VarType.INT8:
                 self.generator.printf_i8(ID)
             elif _type == VarType.INT16:
@@ -277,6 +427,7 @@ class Listener(asdListener):
             elif _type == 'bool' or _type == VarType.BOOL:
 
                 self.generator.printf_bool(ID)
+
             elif _type == VarType.STRING:
                 print("print string")
                 self.generator.printf_string(ID)

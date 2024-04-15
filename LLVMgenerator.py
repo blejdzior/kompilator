@@ -12,6 +12,11 @@ class LLVMgenerator:
     
 
 ############ printf ###############
+    def printf_array_element(self, id, type):
+        self.main_text += f"%{self.reg} = alloca {type}\n"
+        self.main_text += f"store {type} %{id}, {type}* %{self.reg}\n"
+        self.reg += 1
+
     def printf_string(self, id):
         id = str(id)
         self.main_text += "%"+ str(self.reg) +" = load i8*, i8** %"+id+"\n"
@@ -189,6 +194,11 @@ class LLVMgenerator:
         self.reg += 1
 
 ########## DECLARE ################
+    def declare_array(self, id, type, size):
+        # self.header_text += f"%Array{self.array} = type  {{ [{size} x {type}]}}"
+        self.main_text += f"%{id} = alloca [{size} x {type}]\n"
+
+
     def declare_string(self, id):
         self.main_text += "%"+str(id)+" = alloca i8*\n"
     
@@ -239,6 +249,24 @@ class LLVMgenerator:
         self.main_text += "%" + str(id) + " = alloca double\n"
     
 ########## ASSIGN ############
+    
+    def array_access(self, id, index, type, size):
+        self.main_text += f"%{self.reg} = getelementptr inbounds[{size} x {type}], ptr %{id}, i64 0, i64 {index}\n"
+        self.reg += 1
+        self.main_text += f"%{self.reg} = load {type}, {type}* %{self.reg - 1}\n"
+        self.reg += 1
+
+    def element_assign(self, id, index, value, type, size):
+        self.main_text += f"%{self.reg} = getelementptr inbounds[{size} x {type}], ptr %{id}, i64 0, i64 {index}\n"
+        self.main_text += f"store {type} {value}, ptr %{self.reg}\n"
+        self.reg += 1
+
+    
+    def assign_array(self, id, type, size, values):
+        for i in range(len(values)):
+            self.element_assign(id, i, values[i], type, size)
+
+
 
     def assign_string(self, id, value):
         self.main_text += "store i8* %"+str(self.reg-1)+", i8** %"+str(id)+"\n"

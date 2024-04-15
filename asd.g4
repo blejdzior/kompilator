@@ -3,7 +3,7 @@ prog:  expr*  EOF ;
 expr: value ADD value #add
     | var '=' arrAss #arrayAssign
     | var '=' (value | expr) #assign
-    | ID ('[' INT ']')* '=' (value | expr) #elementAssign
+    | ID ('[' INT ']') '=' (value | expr) #elementAssign
     | PRINT '(' value ')' #print
     | READ '(' ID ')' #read
     | value MULT value #mult
@@ -32,7 +32,7 @@ value: INT #int
      | ID   #id
      | BOOL #bool
      | STRING #string
-     | ID ('[' INT ']')* #arrayAccess
+     | ID ('[' INT ']') #arrayAccess
      ;
 type: 'i8'
     | 'i16'
