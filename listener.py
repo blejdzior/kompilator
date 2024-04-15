@@ -17,6 +17,7 @@ class VarType(Enum):
     REAL64 = 6
     BOOL = 7
     STRING = 8
+    ARRAY = 9
 
 
 class Listener(asdListener):
@@ -96,6 +97,15 @@ class Listener(asdListener):
     # Enter a parse tree produced by asdParser#assign.
     def enterAssign(self, ctx: asdParser.AssignContext):
         pass
+    
+
+    def exitArrayAssign(self, ctx: asdParser.ArrayAssignContext):
+        arr = self.stack.pop()
+        if arr.type != VarType.ARRAY:
+            print("Line: " + str(ctx.start.line) + "Variable not of type array") 
+        for i in range(arr.name): #for assignment arr.name holds number of elements in array
+
+
 
     # Exit a parse tree produced by asdParser#assign.
     def exitAssign(self, ctx: asdParser.AssignContext):
@@ -219,6 +229,7 @@ class Listener(asdListener):
         elif type == VarType.STRING:
             self.generator.assign_string(ID, value.name)
 
+
     def exitReal(self, ctx: asdParser.RealContext):
         self.stack.append(Value(ctx.REAL().symbol.text, VarType.REAL64))
 
@@ -236,6 +247,14 @@ class Listener(asdListener):
         n = "ptrstr"+str(self.generator.str-1)
         self.stack.append(Value(n, VarType.STRING))
     
+    def exitArray(self, ctx: asdParser.ArrayContext):
+        i = 0
+        for value in ctx.value():
+            i += 1
+        self.stack.append(Value(i, VarType.ARRAY))
+
+
+
     
     # Exit a parse tree produced by asdParser#print.
     def exitPrint(self, ctx: asdParser.PrintContext):

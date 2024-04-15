@@ -1,4 +1,1 @@
-y = true
-z = false
-x =  y or z  
-print(x)
+x = [2,3,4,5]
