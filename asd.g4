@@ -29,10 +29,9 @@ var: ID (':' type)?
 value: INT #int
      | REAL #real
      | ID   #id
-     | ID ('[' INT ']')* #id_arr
      | BOOL #bool
      | STRING #string
-     | arrAss # arAss_1
+     | ID ('[' INT ']')* #arrayAccess
      ;
 type: 'i8'
     | 'i16'
