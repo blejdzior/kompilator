@@ -30,6 +30,11 @@ class Listener(asdListener):
         self.float = ['f32', 'f64']
         self.ints = [VarType.INT8, VarType.INT16, VarType.INT32, VarType.INT64]
         self.floats = [VarType.REAL32, VarType.REAL64]
+        self.isGlobal = True
+        self.function = ""
+        self.functions = []
+        self.localvariables = []
+        self.funType = 'i64'
 
     # Enter a parse tree produced by asdParser#prog.
     def enterProg(self, ctx: asdParser.ProgContext):
@@ -37,6 +42,7 @@ class Listener(asdListener):
 
     # Exit a parse tree produced by asdParser#prog.
     def exitProg(self, ctx: asdParser.ProgContext):
+        self.generator.close_main()
         result = self.generator.generate()
         print(result)
         f = open("result.ll", "w")
@@ -96,17 +102,33 @@ class Listener(asdListener):
         ID = ctx.ID().symbol.text
         indexes = (ctx.INT(0).symbol.text, ctx.INT(1).symbol.text)
         temp = [(x, y) for x, y in self.variables if x == ID]
-        matrix_type, type, rows, cols = temp[0][1]
+        is_global = True
+        if len(temp) != 0:
+            matrix_type, type, rows, cols = temp[0][1]
+        else:
+            temp = [(x, y) for x, y in self.localvariables if x == ID]
+            if len(temp) != 0:
+                is_global = False
+                matrix_type, type, rows, cols = temp[0][1]
+            else:
+                print(f"Line: {ctx.start.line}, variable {ID} not declared")
+                return
+
         if int(indexes[0]) >= rows or int(indexes[1]) >= cols:
             print(f"Line: {ctx.start.line}, index out of range")
             return
         if len(temp) == 0 or matrix_type != VarType.MATRIX:
             print(f"Line: {ctx.start.line}, variable {ID} not declared")
-            return      
-             
-        self.generator.matrix_access(ID, indexes, type=type, rows=rows, cols=cols)
+            return
 
-        type = self.string_to_type(type)
+        if is_global:
+            ID = '@' + ID
+        else:
+            ID = '%' + ID
+
+        self.generator.matrix_access(ID, indexes, type=self.type_to_string(type), rows=rows, cols=cols)
+
+        # type = self.string_to_type(type)
 
         self.stack.append(Value("%" + str(self.generator.reg - 1), type))
 
@@ -115,7 +137,18 @@ class Listener(asdListener):
         ID = ctx.ID().symbol.text
         index = ctx.INT().symbol.text
         temp = [(x, y) for x, y in self.variables if x == ID]
-        arr_type, type, size = temp[0][1]
+        is_global = True
+        if len(temp) != 0:
+            arr_type, type, size = temp[0][1]
+        else:
+            temp = [(x, y) for x, y in self.localvariables if x == ID]
+            if len(temp) != 0:
+                is_global = False
+                arr_type, type, size = temp[0][1]
+            else:
+                print(f"Line: {ctx.start.line}, variable {ID} not declared")
+                return
+
         if int(index) >= size:
             print(f"Line: {ctx.start.line}, index out of range")
             return
@@ -123,19 +156,69 @@ class Listener(asdListener):
         if len(temp) == 0 or arr_type != VarType.ARRAY:
             print(f"Line: {ctx.start.line}, variable {ID} not declared")
             return
-    
-        self.generator.array_access(ID, index, type=type, size=size)
 
-        type = self.string_to_type(type)
+        if is_global:
+            ID = '@' + ID
+        else:
+            ID = '%' + ID
+
+        self.generator.array_access(ID, index, type=self.type_to_string(type), size=size)
+
+        # type = self.string_to_type(type)
 
         self.stack.append(Value("%" + str(self.generator.reg - 1), type))
+
+
+    def exitMatrixElementAssign(self, ctx: asdParser.ElementAssignContext):
+        ID = ctx.ID().symbol.text
+        indexes = (ctx.INT(0).symbol.text, ctx.INT(1).symbol.text)
+
+        temp = [(x, y) for x, y in self.variables if x == ID]
+        is_global = True
+        if len(temp) != 0:
+            matrix_type, type, rows, cols = temp[0][1]
+        else:
+            temp = [(x, y) for x, y in self.localvariables if x == ID]
+            if len(temp) != 0:
+                is_global = False
+                matrix_type, type, rows, cols = temp[0][1]
+            else:
+                print(f"Line: {ctx.start.line}, variable {ID} not declared")
+                return
+
+        if int(indexes[0]) >= rows or int(indexes[1]) >= cols:
+            print(f"Line: {ctx.start.line}, index out of range")
+            return
+        if len(temp) == 0 or matrix_type != VarType.MATRIX:
+            print(f"Line: {ctx.start.line}, variable {ID} not declared")
+            return
+
+        if is_global:
+            ID = '@' + ID
+        else:
+            ID = '%' + ID
+
+        value = self.stack.pop()
+        self.generator.matrix_element_assign(ID, indexes, value.name, type=self.type_to_string(type), rows=rows, cols=cols)
 
     def exitElementAssign(self, ctx: asdParser.ElementAssignContext):
         ID = ctx.ID().symbol.text
         index = ctx.INT().symbol.text
 
+
         temp = [(x, y) for x, y in self.variables if x == ID]
-        arr_type, type, size = temp[0][1]
+        is_global = True
+        if len(temp) != 0:
+            arr_type, type, size = temp[0][1]
+        else:
+            temp = [(x, y) for x, y in self.localvariables if x == ID]
+            if len(temp) != 0:
+                is_global = False
+                arr_type, type, size = temp[0][1]
+            else:
+                print(f"Line: {ctx.start.line}, variable {ID} not declared")
+                return
+
         if int(index) >= size:
             print(f"Line: {ctx.start.line}, index out of range")
             return
@@ -143,14 +226,18 @@ class Listener(asdListener):
             print(f"Line: {ctx.start.line}, variable {ID} not declared")
             return
 
+        if is_global:
+            ID = '@' + ID
+        else:
+            ID = '%' + ID
+
         value = self.stack.pop()
-        self.generator.element_assign(ID, index, value.name, type=type, size=size)
+        self.generator.element_assign(ID, index, value.name, type=self.type_to_string(type), size=size)
 
     def exitMatrixAssign(self, ctx: asdParser.MatrixAssignContext):
         ID = ctx.var().ID().symbol.text
         try:
             type = ctx.var().type_().getText()
-            print(type)
             if type == 'i8':
                 type = VarType.INT8
             elif type == 'i16':
@@ -170,17 +257,26 @@ class Listener(asdListener):
         except AttributeError:
             type = None
 
+        is_global = self.isGlobal
         temp = [(x, y) for x, y in self.variables if x == ID]
         if len(temp) != 0:
-            if type  != temp[0][1][1]:
+            is_global = True
+            if type != temp[0][1][1]:
                 type = temp[0][1][1]
                 type = self.string_to_type(type)
+        else:
+            temp = [(x, y) for x, y in self.localvariables if x == ID]
+            if len(temp) != 0:
+                is_global = False
+                if type != temp[0][1][1]:
+                    type = temp[0][1][1]
+                    type = self.string_to_type(type)
 
         matrix = self.stack.pop()
         if matrix.type != VarType.MATRIX:
-            print("Line: " + str(ctx.start.line) + "Variable not of type matrix") 
+            print("Line: " + str(ctx.start.line) + "Variable not of type matrix")
             return
-        
+
         if matrix.name == 0:
             print("Line: " + str(ctx.start.line) + ", matrix cannot be initialized without values")
             return
@@ -193,7 +289,7 @@ class Listener(asdListener):
                 return
         if type == VarType.STRING:
             print(f"Line: {ctx.start.line}, array cannot be initialized with string")
-            return        
+            return
         rows = matrix.name # number of matrix lines
         cols = self.stack[-1].name # number of elements of first line in matrix
         lines = []
@@ -202,7 +298,7 @@ class Listener(asdListener):
             if arr.name != cols:
                 print(f"Line: {ctx.start.line}, all rows must have the same number of elements")
                 return
-            values = [] 
+            values = []
             for j in range(arr.name): #for assignment arr.name holds number of elements in array
                 v = self.stack.pop()
                 if v.type != type:
@@ -212,13 +308,18 @@ class Listener(asdListener):
             values.reverse()
             lines.append(values)
         lines.reverse()
-        
+
         type = self.type_to_string(type)
 
         if len(temp) == 0:
-            self.generator.declare_matrix(ID, type = type, rows = rows, cols = cols)
-            self.variables.append((ID, (matrix.type, type, rows, cols)))
-        
+            self.generator.declare_matrix(ID, type = type, rows = rows, cols = cols, is_global=is_global)
+            self.variables.append((ID, (matrix.type, self.string_to_type(type), rows, cols)))
+
+        if is_global:
+            ID = '@' + ID
+        else:
+            ID = '%' + ID
+
         self.generator.assign_matrix(ID, type = type, rows = rows, cols = cols, lines = lines)
 
 
@@ -228,7 +329,6 @@ class Listener(asdListener):
         ID = ctx.var().ID().symbol.text
         try:
             type = ctx.var().type_().getText()
-            print(type)
             if type == 'i8':
                 type = VarType.INT8
             elif type == 'i16':
@@ -248,17 +348,26 @@ class Listener(asdListener):
         except AttributeError:
             type = None
 
+
+        is_global = self.isGlobal
         temp = [(x, y) for x, y in self.variables if x == ID]
         if len(temp) != 0:
-            if type  != temp[0][1][1]:
+            is_global = True
+            if type != temp[0][1][1]:
                 type = temp[0][1][1]
                 type = self.string_to_type(type)
-
+        else:
+            temp = [(x, y) for x, y in self.localvariables if x == ID]
+            if len(temp) != 0:
+                is_global = False
+                if type != temp[0][1][1]:
+                    type = temp[0][1][1]
+                    type = self.string_to_type(type)
 
         arr = self.stack.pop()
         if arr.type != VarType.ARRAY:
-            print("Line: " + str(ctx.start.line) + "Variable not of type array") 
-        
+            print("Line: " + str(ctx.start.line) + "Variable not of type array")
+
         if arr.name == 0:
             print("Line: " + str(ctx.start.line) + ", array cannot be initialized without values")
             return
@@ -271,8 +380,8 @@ class Listener(asdListener):
                 return
         if type == VarType.STRING:
             print(f"Line: {ctx.start.line}, array cannot be initialized with string")
-            return        
-        
+            return
+
         # get all values in array
         values = []
         for i in range(arr.name): #for assignment arr.name holds number of elements in array
@@ -284,11 +393,17 @@ class Listener(asdListener):
         values.reverse()
 
         type = self.type_to_string(type)
+        print(arr.type, self.string_to_type(type), arr.name)
 
         if len(temp) == 0:
-            self.generator.declare_array(ID, type = type, size = arr.name)
-            self.variables.append((ID, (arr.type, type, arr.name)))
-        
+            self.generator.declare_array(ID, type = type, size = arr.name, is_global=is_global)
+            self.variables.append((ID, (arr.type, self.string_to_type(type), arr.name)))
+
+        if is_global:
+            ID = '@' + ID
+        else:
+            ID = '%' + ID
+
         self.generator.assign_array(ID, type = type, size = arr.name, values = values)
 
 
@@ -298,7 +413,6 @@ class Listener(asdListener):
         ID = ctx.var().ID().symbol.text
         try:
             type = ctx.var().type_().getText()
-            print(type)
             if type == 'i8':
                 type = VarType.INT8
             elif type == 'i16':
@@ -321,58 +435,69 @@ class Listener(asdListener):
         # Can assign var to var if: try: value = self.stack.pop() except IndexError: value = ctx.value().ID().symbol.text
         value = self.stack.pop()
 
+        is_global = self.isGlobal
         temp = [(x, y) for x, y in self.variables if x == ID]
         if len(temp) != 0:
             type = temp[0][1]
+            is_global = True
+        else:
+            temp = [(x, y) for x, y in self.localvariables if x == ID]
+            if len(temp) != 0:
+                is_global = False
+                type = temp[0][1]
 
-        print(123, type)
         # if no declared type then get type of value
         if type == None:
             type = value.type
 
 
         # if ID is not in self.variables
-        if len(temp) == 0:
+        if len(temp) == 0 and value.name[0] != '%':
             # check if declared type matches value type
             if type in self.ints and value.type in self.ints:
-                print(value, value.name)
                 bitlen = int(value.name).bit_length()
                 if type == VarType.INT8 and bitlen in range(8):  # i8
-                    self.generator.declare_i8(ID)
+                    self.generator.declare_i8(ID, is_global)
                 elif type == VarType.INT16 and bitlen in range(16):  # i16
-                    self.generator.declare_i16(ID)
+                    self.generator.declare_i16(ID, is_global)
                 elif type == VarType.INT32 and bitlen in range(32):  # i32
-                    self.generator.declare_i32(ID)
+                    self.generator.declare_i32(ID, is_global)
                 elif type == VarType.INT64 and bitlen in range(64):  # i64
-                    self.generator.declare_i64(ID)
+                    self.generator.declare_i64(ID, is_global)
                 else:
                     print("Line: " + str(ctx.start.line) + ", integer number is too large to write to " + str(type))
                     return
             elif type in self.floats and value.type in self.floats:
                 if type == VarType.REAL32:  # f32
-                    self.generator.declare_float32(ID)
+                    self.generator.declare_float32(ID, is_global)
                 elif type == VarType.REAL64:  # f64
-                    self.generator.declare_double(ID)
+                    self.generator.declare_double(ID, is_global)
             elif type == 'bool' or type == VarType.BOOL or value.type == VarType.BOOL:
-                self.generator.declare_bool(ID)
+                self.generator.declare_bool(ID, is_global)
             elif type == VarType.STRING:
-                self.generator.declare_string(ID)
+                self.generator.declare_string(ID, is_global)
             elif type == None:  # no declared type
                 if value.type == VarType.INT32:
-                    self.generator.declare_i32(ID)
+                    self.generator.declare_i32(ID, is_global)
                 elif value.type == VarType.REAL64:
-                    self.generator.declare_double(ID)
+                    self.generator.declare_double(ID, is_global)
                 elif value.type == VarType.STRING:
-                    self.generator.declare_string(ID)
+                    self.generator.declare_string(ID, is_global)
 
             else:
                 print("Line: " + str(ctx.start.line) + ", VarType and ValueType mismatch", type, value.type)
                 return
 
-            if type:
-                self.variables.append((ID, type))
+            if is_global:
+                if type:
+                    self.variables.append((ID, type))
+                else:
+                    self.variables.append((ID, value.type))
             else:
-                self.variables.append((ID, value.type))
+                if type:
+                    self.localvariables.append((ID, type))
+                else:
+                    self.localvariables.append((ID, value.type))
 
         if value.name[0] == '%' and type != value.type:
             if type in self.ints and value.type in self.floats:
@@ -391,6 +516,11 @@ class Listener(asdListener):
                                              self.getTypeStr(type))
 
             value.name = "%" + str(self.generator.reg - 1)
+
+        if is_global:
+            ID = "@" + ID
+        else:
+            ID = "%" + ID
 
         if type == VarType.INT8:
             self.generator.assign_i8(ID, value.name)
@@ -444,13 +574,13 @@ class Listener(asdListener):
         for value in ctx.value():
             i += 1
         self.stack.append(Value(i ,VarType.ARRAY))
-    
+
     def exitMatrix(self, ctx: asdParser.MatrixContext):
         i = 0
         for value in ctx.matLine():
             i += 1
         self.stack.append(Value(i, VarType.MATRIX))
-    
+
     def string_to_type(self, string):
         if string == "i8":
             return VarType.INT8
@@ -487,34 +617,40 @@ class Listener(asdListener):
         elif type == 'bool' or type == VarType.BOOL:
             return "i1"
 
-        
 
-    
+
+
     # Exit a parse tree produced by asdParser#print.
     def exitPrint(self, ctx: asdParser.PrintContext):
         ID = ctx.value().ID().symbol.text
         temp = [(x, y) for x, y in self.variables if x == ID]
-    
         if len(temp) != 0:
-            _type = temp[0][1]
-            try:
-                if _type[0] == VarType.ARRAY:
-                    v = self.stack.pop()
-                    ID = v.name[1:]
-                    _type = v.type
-                    __type = self.type_to_string(_type)
-                    # have to transform variable created by generator.arrayAccess to ptr type
-                    self.generator.printf_array_element(ID, __type)
-                    ID = str(self.generator.reg - 1)
-                elif _type[0] == VarType.MATRIX:
-                    v = self.stack.pop()
-                    ID = v.name[1:]
-                    _type = v.type
-                    __type = self.type_to_string(_type)
-                    self.generator.printf_array_element(ID, __type)
-                    ID = str(self.generator.reg - 1)
-            except:
-                pass
+            ID = '@' + ID
+        else:
+            temp = [(x, y) for x, y in self.localvariables if x == ID]
+            if len(temp) != 0:
+                ID = '%' + ID
+            else:
+                print("Line " + str(ctx.start.line) + ", unknown variable: " + str(ID))
+
+        _type = temp[0][1]
+        try:
+            if _type[0] == VarType.ARRAY:
+                v = self.stack.pop()
+                ID = v.name[1:]
+                _type = v.type[1]
+                __type = self.type_to_string(_type)
+                # have to transform variable created by generator.arrayAccess to ptr type
+                self.generator.printf_array_element(ID, __type)
+                ID = str(self.generator.reg - 1)
+            elif _type[0] == VarType.MATRIX:
+                v = self.stack.pop()
+                ID = v.name[1:]
+                _type = v.type
+                __type = self.type_to_string(_type)
+                self.generator.printf_array_element(ID, __type)
+                ID = str(self.generator.reg - 1)
+        except:
             if _type == VarType.INT8:
                 self.generator.printf_i8(ID)
             elif _type == VarType.INT16:
@@ -528,16 +664,12 @@ class Listener(asdListener):
             elif _type == VarType.REAL64:
                 self.generator.printf_double(ID)
             elif _type == 'bool' or _type == VarType.BOOL:
-
                 self.generator.printf_bool(ID)
-
             elif _type == VarType.STRING:
-                print("print string")
                 self.generator.printf_string(ID)
             else:
                 print("Line: " + str(ctx.start.line) + ", unknown variable type")
-        else:
-            print("Line " + str(ctx.start.line) + ", unknown variable: " + str(ID))
+
 
     # Enter a parse tree produced by asdParser#read.
     def enterRead(self, ctx: asdParser.ReadContext):
@@ -801,6 +933,100 @@ class Listener(asdListener):
             self.stack.append(Value("%" + str(self.generator.reg - 1), VarType.REAL64))
             self.variables.append((str(self.generator.reg - 1), VarType.REAL64))
 
+
+    # Enter a parse tree produced by asdParser#blockif.
+    def enterBlockif(self, ctx: asdParser.BlockifContext):
+        self.generator.ifstart()
+
+    # Exit a parse tree produced by asdParser#blockif.
+    def exitBlockif(self, ctx: asdParser.BlockifContext):
+        self.generator.ifend()
+
+    # Exit a parse tree produced by asdParser#equal.
+    def exitEqual(self, ctx: asdParser.EqualContext):
+        ID = ctx.ID().getText()
+        INT = ctx.INT().getText()
+        temp = [(x, y) for x, y in self.variables if x == ID]
+        if len(temp) != 0:
+            self.generator.icmp('@' + ID, INT)
+        else:
+            temp = [(x, y) for x, y in self.localvariables if x == ID]
+            if len(temp) != 0:
+                self.generator.icmp('%' + ID, INT)
+            else:
+                raise Exception("Line " + str(ctx.start.line) + ", unknown variable: "+ str(ID))
+
+
+    # Exit a parse tree produced by asdParser#repsNr.
+    def exitRepsNr(self, ctx:asdParser.RepsNrContext):
+        if ctx.ID() is None:
+            value = ctx.INT().getText()
+        else:
+            ID = '%' + ctx.ID().getText()
+            self.generator.load(ID, 'i32')
+            value = '%' + str(self.generator.reg - 1)
+
+        self.generator.repeatstart(value)
+
+
+    # Exit a parse tree produced by asdParser#blockwhile.
+    def exitBlockwhile(self, ctx:asdParser.BlockwhileContext):
+        self.generator.repeatend()
+
+    # Exit a parse tree produced by asdParser#function.
+    def exitFunction(self, ctx:asdParser.FunctionContext):
+        self.funType = 'i64'
+
+    # Exit a parse tree produced by asdParser#funType.
+    def exitFunType(self, ctx:asdParser.FunTypeContext):
+        _type = ctx.type_().getText()
+        if _type == 'f64':
+            _type = 'double'
+        elif _type == 'f32':
+            _type = 'float'
+        elif _type == 'bool':
+            _type = 'i1'
+        elif _type == 'str':
+            _type = 'i8*'
+
+        self.funType = _type
+
+    # Exit a parse tree produced by asdParser#funId.
+    def exitFunId(self, ctx:asdParser.FunIdContext):
+        ID = str(ctx.ID())
+        self.functions.append((ID, self.funType))
+        self.function = ID
+        self.generator.functionstart(ID, self.funType)
+
+    # Enter a parse tree produced by asdParser#blockfun.
+    def enterBlockfun(self, ctx:asdParser.BlockfunContext):
+        self.isGlobal = False
+
+    # Exit a parse tree produced by asdParser#blockfun.
+    def exitBlockfun(self, ctx:asdParser.BlockfunContext):
+        temp = [(x, y) for x, y in self.localvariables if x == self.function]
+        if len(temp) == 0:
+            self.generator.declare_i32(self.function, False)
+            self.generator.assign_i32("%"+str(self.function), 0)
+        #   "%"+self.function
+
+        self.generator.load("%"+str(self.function), self.funType)
+        self.generator.functionend(self.funType)
+        self.localvariables = []
+        self.isGlobal = True
+
+    # Exit a parse tree produced by asdParser#call.
+    def exitCall(self, ctx:asdParser.CallContext):
+        ID = str(ctx.ID())
+
+        temp = [(x, y) for x, y in self.functions if x == ID]
+        if len(temp) == 0:
+            raise Exception(ctx.start.line, "undeclared function: ", ID, self.functions)
+        else:
+            self.generator.call(ID, temp[0][1])
+            self.stack.append(Value("%" + str(self.generator.reg - 1), self.getTypeVarType(temp[0][1])))
+
+
     # Enter a parse tree produced by asdParser#value.
     def enterValue(self, ctx: asdParser.ValueContext):
         pass
@@ -831,16 +1057,45 @@ class Listener(asdListener):
         elif varTp == VarType.STRING:
             return 'i8*'
 
+    def getTypeVarType(self, _type):
+        if _type == 'i8':
+            _type = VarType.INT8
+        elif _type == 'i16':
+            _type = VarType.INT16
+        elif _type == 'i32':
+            _type = VarType.INT32
+        elif _type == 'i64':
+            _type = VarType.INT64
+        elif _type == 'f32' or _type == 'float':
+            _type = VarType.REAL32
+        elif _type == 'f64' or _type == 'double':
+            _type = VarType.REAL64
+        elif _type == 'bool' or _type == 'i1':
+            _type = VarType.BOOL
+        elif _type == 'str' or _type == 'i8*':
+            _type = VarType.STRING
+
+        return _type
+
     # Exit a parse tree produced by asdParser#id.
     def exitId(self, ctx: asdParser.IdContext):
         ID = str(ctx.ID())
 
         temp = [(x, y) for x, y in self.variables if x == ID]
         if len(temp) == 0:
-            raise Exception(ctx.start.line, "undeclared variable: ", ID)
+            temp = [(x, y) for x, y in self.localvariables if x == ID]
+            if len(temp) == 0:
+                raise Exception(ctx.start.line, "undeclared variable: ", ID)
+            else:
+                type = self.getTypeStr(temp[0][1])
+                self.generator.load("%" + str(ctx.ID()), type)
+                self.stack.append(Value("%" + str(self.generator.reg - 1), temp[0][1]))
         else:
             type = self.getTypeStr(temp[0][1])
-            self.generator.load("%" + str(ctx.ID()), type)
+            if type == None:
+                type = self.getTypeStr(temp[0][1][1])
+
+            self.generator.load("@" + str(ctx.ID()), type)
             self.stack.append(Value("%" + str(self.generator.reg - 1), temp[0][1]))
 
         pass

@@ -12,7 +12,19 @@ expr: value ADD value #add
     | value DIV value #div
     | value SUB value #sub
     | booleanOperation # booleanOp
+    | IF '(' equal ')' '{' blockif '}' #if
+    | REPEAT repsNr '{' blockwhile '}' #repeat
+    | FUNCTION funType funId '{' blockfun '}' #function
     ;
+
+funId: ID;
+funType: type;
+blockfun: expr*;
+repsNr: ID | INT;
+blockwhile: expr* ;
+equal: ID '==' INT;
+blockif: expr* ;
+
 booleanOperation: andOp # and
                 | orOp # or
                 | xorOp # xor
@@ -20,7 +32,7 @@ booleanOperation: andOp # and
                 ;
 matAss: '[' matLine* ']' # matrix
       ;
-matLine: value+ LineBreak? #matrixLine;
+matLine: value+ SEMI? #matrixLine;
 
 arrAss: '[' value (',' value)* ']' # array;
 andOp: value AND (value | booleanOperation);
@@ -40,6 +52,7 @@ value: INT #int
      | STRING #string
      | ID ('[' INT ']') #arrayAccess
      | ID '[' INT ']' '[' INT ']' #matrixAccess
+     | ID '()' #call
      ;
 type: 'i8'
     | 'i16'
@@ -51,7 +64,9 @@ type: 'i8'
     | 'str'
     ;
 
-
+FUNCTION: 'fun';
+IF      : 'if';
+REPEAT   : 'repeat';
 AND     : 'and';
 OR      : 'or';
 XOR     : 'xor';
@@ -59,7 +74,7 @@ NEG     : 'neg';
 READ    : 'read';
 PRINT   : 'print';
 BOOL    : 'true' | 'false';
-LineBreak: '\n';
+SEMI    : ';';
 WS : [\r\n \t]+ -> skip;
 INT     : [0-9]+ ;
 REAL   : [0-9]+ '.' [0-9]+;
