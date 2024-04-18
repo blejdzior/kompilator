@@ -1,7 +1,11 @@
 grammar asd;
 prog:  expr*  EOF ;
 expr: value ADD value #add
+    | var '=' matAss #matrixAssign
+    | var '=' arrAss #arrayAssign
     | var '=' (value | expr) #assign
+    | ID ('[' INT ']') '=' (value | expr) #elementAssign
+    | ID '[' INT ']' '[' INT ']' '=' (value | expr) #matrixElementAssign
     | PRINT '(' value ')' #print
     | READ '(' ID ')' #read
     | value MULT value #mult
@@ -26,7 +30,11 @@ booleanOperation: andOp # and
                 | xorOp # xor
                 | negOp # neg
                 ;
+matAss: '[' matLine* ']' # matrix
+      ;
+matLine: value+ SEMI? #matrixLine;
 
+arrAss: '[' value (',' value)* ']' # array;
 andOp: value AND (value | booleanOperation);
 orOp : value OR (value | booleanOperation);
 xorOp: value XOR (value |  booleanOperation);
@@ -42,6 +50,8 @@ value: INT #int
      | ID   #id
      | BOOL #bool
      | STRING #string
+     | ID ('[' INT ']') #arrayAccess
+     | ID '[' INT ']' '[' INT ']' #matrixAccess
      | ID '()' #call
      ;
 type: 'i8'
@@ -64,6 +74,7 @@ NEG     : 'neg';
 READ    : 'read';
 PRINT   : 'print';
 BOOL    : 'true' | 'false';
+SEMI    : ';';
 WS : [\r\n \t]+ -> skip;
 INT     : [0-9]+ ;
 REAL   : [0-9]+ '.' [0-9]+;

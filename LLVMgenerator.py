@@ -16,6 +16,11 @@ class LLVMgenerator:
     
 
 ############ printf ###############
+    def printf_array_element(self, id, type):
+        self.main_text += f"%{self.reg} = alloca {type}\n"
+        self.main_text += f"store {type} %{id}, {type}* %{self.reg}\n"
+        self.reg += 1
+
     def printf_string(self, id):
         id = str(id)
         self.main_text += "%"+ str(self.reg) +" = load i8*, i8** "+id+"\n"
@@ -193,12 +198,24 @@ class LLVMgenerator:
         self.reg += 1
 
 ########## DECLARE ################
+    def declare_array(self, id, type, size, is_global):
+        if is_global:
+            self.header_text += "@"+ str(id) + f" = global [{size} x {type}] zeroinitializer\n"
+        else:
+            self.main_text += f"%{id} = alloca [{size} x {type}]\n"
+
+    def declare_matrix(self, id, type, rows, cols, is_global):
+        if is_global:
+            self.header_text += "@"+ str(id) + f" = global [{rows} x <{cols} x {type}>] zeroinitializer\n"
+        else:
+            self.main_text += f"%{id} = alloca [{rows} x <{cols} x {type}>]\n"
+
     def declare_string(self, id, is_global):
         if is_global:
             self.header_text += "@"+ str(id) + " = global [1 x i8] c\"\\00\"\n"
         else:
             self.main_text += "%" + str(id) + " = alloca i8*\n"
-    
+
     def allocate_string(self, id, l):
         self.main_text += "%"+str(id)+" = alloca ["+str(l+1)+" x i8]\n"
     
@@ -267,6 +284,57 @@ class LLVMgenerator:
             self.main_text += "%" + str(id) + " = alloca double\n"
     
 ########## ASSIGN ############
+
+
+    def assign_matrix(self, id, type, rows, cols, lines):
+        for i in range(rows):
+            self.main_text += f"%{self.reg} = getelementptr inbounds [ {rows} x <{cols} x {type}>], ptr {id}, i64 0, i64 {i}\n"
+            temp = self.reg
+            self.reg += 1
+            self.main_text += f"%{self.reg} = load <{cols} x {type}>, ptr %{self.reg - 1}\n"
+            self.reg += 1
+            for j in range(cols):
+                self.main_text += f"%{self.reg} = insertelement <{cols} x {type}> %{self.reg - 1}, {type} {lines[i][j]}, i32 {j}\n"
+                self.reg += 1
+            self.main_text += f"store <{cols} x {type} > %{self.reg - 1}, ptr %{temp}\n"
+
+    def matrix_access(self, id, indexes, type, rows, cols):
+        row_index = indexes[0]
+        col_index = indexes[1]
+        self.main_text += f"%{self.reg} = getelementptr inbounds [{rows} x <{cols} x {type} >], ptr {id}, i64 0, i64 {row_index}\n"
+        self.reg += 1
+        self.main_text += f"%{self.reg} = load <{cols} x {type}>, ptr %{self.reg - 1}\n"
+        self.reg += 1
+        self.main_text += f"%{self.reg} = extractelement <{cols} x {type}> %{self.reg-1}, i64 {col_index}\n"
+        self.reg += 1
+
+    def matrix_element_assign(self, id, indexes, value, type, rows, cols):
+        row_index = indexes[0]
+        col_index = indexes[1]
+        self.main_text += f"%{self.reg} = getelementptr inbounds [{rows} x <{cols} x {type} >], ptr {id}, i64 0, i64 {row_index}\n"
+        self.reg += 1
+        self.main_text += f"%{self.reg} = getelementptr inbounds[{cols} x {type}], ptr %{self.reg-1}, i64 0, i64 {col_index}\n"
+        self.main_text += f"store {type} {value}, ptr %{self.reg}\n"
+        self.reg += 1
+
+
+    def array_access(self, id, index, type, size):
+        self.main_text += f"%{self.reg} = getelementptr inbounds[{size} x {type}], ptr {id}, i64 0, i64 {index}\n"
+        self.reg += 1
+        self.main_text += f"%{self.reg} = load {type}, {type}* %{self.reg - 1}\n"
+        self.reg += 1
+
+    def element_assign(self, id, index, value, type, size):
+        self.main_text += f"%{self.reg} = getelementptr inbounds[{size} x {type}], ptr {id}, i64 0, i64 {index}\n"
+        self.main_text += f"store {type} {value}, ptr %{self.reg}\n"
+        self.reg += 1
+
+
+    def assign_array(self, id, type, size, values):
+        for i in range(len(values)):
+            self.element_assign(id, i, values[i], type, size)
+
+
 
     def assign_string(self, id, value):
         self.main_text += "store i8* %"+str(self.reg-1)+", i8** "+str(id)+"\n"
