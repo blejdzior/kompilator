@@ -15,8 +15,15 @@ expr: value ADD value #add
     | IF '(' equal ')' '{' blockif '}' #if
     | REPEAT repsNr '{' blockwhile '}' #repeat
     | FUNCTION funType funId '{' blockfun '}' #function
+    | STRUCT structId '{' blockstruct '}' #struct
+    | CLASS classId '{' blockclass '}' #class
+    | ID '.' value #memberAccess
     ;
 
+structId: ID;
+classId : ID;
+blockclass: expr*;
+blockstruct: expr*;
 funId: ID;
 funType: type;
 blockfun: expr*;
@@ -64,9 +71,11 @@ type: 'i8'
     | 'str'
     ;
 
+STRUCT  : 'struct';
+CLASS   : 'class';
 FUNCTION: 'fun';
 IF      : 'if';
-REPEAT   : 'repeat';
+REPEAT  : 'repeat';
 AND     : 'and';
 OR      : 'or';
 XOR     : 'xor';
