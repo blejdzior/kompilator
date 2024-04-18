@@ -28,6 +28,11 @@ class Listener(asdListener):
         self.float = ['f32', 'f64']
         self.ints = [VarType.INT8, VarType.INT16, VarType.INT32, VarType.INT64]
         self.floats = [VarType.REAL32, VarType.REAL64]
+        self.isGlobal = True
+        self.function = ""
+        self.functions = []
+        self.localvariables = []
+        self.funType = 'i64'
 
     # Enter a parse tree produced by asdParser#prog.
     def enterProg(self, ctx: asdParser.ProgContext):
@@ -35,6 +40,7 @@ class Listener(asdListener):
 
     # Exit a parse tree produced by asdParser#prog.
     def exitProg(self, ctx: asdParser.ProgContext):
+        self.generator.close_main()
         result = self.generator.generate()
         print(result)
         f = open("result.ll", "w")
@@ -128,6 +134,10 @@ class Listener(asdListener):
         temp = [(x, y) for x, y in self.variables if x == ID]
         if len(temp) != 0:
             type = temp[0][1]
+        else:
+            temp = [(x, y) for x, y in self.localvariables if x == ID]
+            if len(temp) != 0:
+                type = temp[0][1]
 
         # if no declared type then get type of value
         if type == None:
@@ -135,46 +145,52 @@ class Listener(asdListener):
 
 
         # if ID is not in self.variables
-        if len(temp) == 0:
+        if len(temp) == 0 and value.name[0] != '%':
             # check if declared type matches value type
             if type in self.ints and value.type in self.ints:
                 bitlen = int(value.name).bit_length()
                 if type == VarType.INT8 and bitlen in range(8):  # i8
-                    self.generator.declare_i8(ID)
+                    self.generator.declare_i8(ID, self.isGlobal)
                 elif type == VarType.INT16 and bitlen in range(16):  # i16
-                    self.generator.declare_i16(ID)
+                    self.generator.declare_i16(ID, self.isGlobal)
                 elif type == VarType.INT32 and bitlen in range(32):  # i32
-                    self.generator.declare_i32(ID)
+                    self.generator.declare_i32(ID, self.isGlobal)
                 elif type == VarType.INT64 and bitlen in range(64):  # i64
-                    self.generator.declare_i64(ID)
+                    self.generator.declare_i64(ID, self.isGlobal)
                 else:
                     print("Line: " + str(ctx.start.line) + ", integer number is too large to write to " + str(type))
                     return
             elif type in self.floats and value.type in self.floats:
                 if type == VarType.REAL32:  # f32
-                    self.generator.declare_float32(ID)
+                    self.generator.declare_float32(ID, self.isGlobal)
                 elif type == VarType.REAL64:  # f64
-                    self.generator.declare_double(ID)
+                    self.generator.declare_double(ID, self.isGlobal)
             elif type == 'bool' or type == VarType.BOOL or value.type == VarType.BOOL:
-                self.generator.declare_bool(ID)
+                self.generator.declare_bool(ID, self.isGlobal)
             elif type == VarType.STRING:
-                self.generator.declare_string(ID)
+                self.generator.declare_string(ID, self.isGlobal)
             elif type == None:  # no declared type
                 if value.type == VarType.INT32:
-                    self.generator.declare_i32(ID)
+                    self.generator.declare_i32(ID, self.isGlobal)
                 elif value.type == VarType.REAL64:
-                    self.generator.declare_double(ID)
+                    self.generator.declare_double(ID, self.isGlobal)
                 elif value.type == VarType.STRING:
-                    self.generator.declare_string(ID)
+                    self.generator.declare_string(ID, self.isGlobal)
 
             else:
                 print("Line: " + str(ctx.start.line) + ", VarType and ValueType mismatch", type, value.type)
                 return
 
-            if type:
-                self.variables.append((ID, type))
+            if self.isGlobal:
+                if type:
+                    self.variables.append((ID, type))
+                else:
+                    self.variables.append((ID, value.type))
             else:
-                self.variables.append((ID, value.type))
+                if type:
+                    self.localvariables.append((ID, type))
+                else:
+                    self.localvariables.append((ID, value.type))
 
         if value.name[0] == '%' and type != value.type:
             if type in self.ints and value.type in self.floats:
@@ -193,6 +209,11 @@ class Listener(asdListener):
                                              self.getTypeStr(type))
 
             value.name = "%" + str(self.generator.reg - 1)
+
+        if self.isGlobal:
+            ID = "@" + ID
+        else:
+            ID = "%" + ID
 
         if type == VarType.INT8:
             self.generator.assign_i8(ID, value.name)
@@ -239,29 +260,34 @@ class Listener(asdListener):
         ID = ctx.value().ID().symbol.text
         temp = [(x, y) for x, y in self.variables if x == ID]
         if len(temp) != 0:
-            _type = temp[0][1]
-            if _type == VarType.INT8:
-                self.generator.printf_i8(ID)
-            elif _type == VarType.INT16:
-                self.generator.printf_i16(ID)
-            elif _type == VarType.INT32:
-                self.generator.printf_i32(ID)
-            elif _type == VarType.INT64:
-                self.generator.printf_i64(ID)
-            elif _type == VarType.REAL32:
-                self.generator.printf_float32(ID)
-            elif _type == VarType.REAL64:
-                self.generator.printf_double(ID)
-            elif _type == 'bool' or _type == VarType.BOOL:
-
-                self.generator.printf_bool(ID)
-            elif _type == VarType.STRING:
-                print("print string")
-                self.generator.printf_string(ID)
-            else:
-                print("Line: " + str(ctx.start.line) + ", unknown variable type")
+            ID = '@' + ID
         else:
-            print("Line " + str(ctx.start.line) + ", unknown variable: " + str(ID))
+            temp = [(x, y) for x, y in self.localvariables if x == ID]
+            if len(temp) != 0:
+                ID = '%' + ID
+            else:
+                print("Line " + str(ctx.start.line) + ", unknown variable: " + str(ID))
+
+        _type = temp[0][1]
+        if _type == VarType.INT8:
+            self.generator.printf_i8(ID)
+        elif _type == VarType.INT16:
+            self.generator.printf_i16(ID)
+        elif _type == VarType.INT32:
+            self.generator.printf_i32(ID)
+        elif _type == VarType.INT64:
+            self.generator.printf_i64(ID)
+        elif _type == VarType.REAL32:
+            self.generator.printf_float32(ID)
+        elif _type == VarType.REAL64:
+            self.generator.printf_double(ID)
+        elif _type == 'bool' or _type == VarType.BOOL:
+            self.generator.printf_bool(ID)
+        elif _type == VarType.STRING:
+            self.generator.printf_string(ID)
+        else:
+            print("Line: " + str(ctx.start.line) + ", unknown variable type")
+
 
     # Enter a parse tree produced by asdParser#read.
     def enterRead(self, ctx: asdParser.ReadContext):
@@ -540,9 +566,13 @@ class Listener(asdListener):
         INT = ctx.INT().getText()
         temp = [(x, y) for x, y in self.variables if x == ID]
         if len(temp) != 0:
-            self.generator.icmp(ID, INT)
+            self.generator.icmp('@' + ID, INT)
         else:
-          raise Exception("Line " + str(ctx.start.line) + ", unknown variable: "+ str(ID))
+            temp = [(x, y) for x, y in self.localvariables if x == ID]
+            if len(temp) != 0:
+                self.generator.icmp('%' + ID, INT)
+            else:
+                raise Exception("Line " + str(ctx.start.line) + ", unknown variable: "+ str(ID))
 
 
     # Exit a parse tree produced by asdParser#repsNr.
@@ -560,6 +590,73 @@ class Listener(asdListener):
     # Exit a parse tree produced by asdParser#blockwhile.
     def exitBlockwhile(self, ctx:asdParser.BlockwhileContext):
         self.generator.repeatend()
+
+    # Exit a parse tree produced by asdParser#function.
+    def exitFunction(self, ctx:asdParser.FunctionContext):
+        self.funType = 'i64'
+
+    # Exit a parse tree produced by asdParser#funType.
+    def exitFunType(self, ctx:asdParser.FunTypeContext):
+        _type = ctx.type_().getText()
+        if _type == 'f64':
+            _type = 'double'
+        elif _type == 'f32':
+            _type = 'float'
+        elif _type == 'bool':
+            _type = 'i1'
+        elif _type == 'str':
+            _type = 'i8*'
+
+        self.funType = _type
+
+    # Exit a parse tree produced by asdParser#funId.
+    def exitFunId(self, ctx:asdParser.FunIdContext):
+        ID = str(ctx.ID())
+        self.functions.append((ID, self.funType))
+        self.function = ID
+        self.generator.functionstart(ID, self.funType)
+
+    # Enter a parse tree produced by asdParser#blockfun.
+    def enterBlockfun(self, ctx:asdParser.BlockfunContext):
+        self.isGlobal = False
+
+    # Exit a parse tree produced by asdParser#blockfun.
+    def exitBlockfun(self, ctx:asdParser.BlockfunContext):
+        temp = [(x, y) for x, y in self.localvariables if x == self.function]
+        if len(temp) == 0:
+            self.generator.declare_i32(self.function, False)
+            self.generator.assign_i32("%"+str(self.function), 0)
+        #   "%"+self.function
+
+        self.generator.load("%"+str(self.function), self.funType)
+        self.generator.functionend(self.funType)
+        self.localvariables = []
+        self.isGlobal = True
+
+    # def set_variable(self, ID, var_type):
+    #     if self.isGlobal:
+    #         if ID not in self.globalnames:
+    #             self.globalnames.append(ID)
+    #             self.generator.declare_i32(ID, True)
+    #
+    #     else:
+    #         if ID not in self.localvariables:
+    #             self.localvariables.append(ID)
+    #             self.generator.declare_i32(ID, False)
+    #
+    #     return "@"+ID
+
+    # Exit a parse tree produced by asdParser#call.
+    def exitCall(self, ctx:asdParser.CallContext):
+        ID = str(ctx.ID())
+
+        temp = [(x, y) for x, y in self.functions if x == ID]
+        if len(temp) == 0:
+            raise Exception(ctx.start.line, "undeclared function: ", ID, self.functions)
+        else:
+            self.generator.call(ID, temp[0][1])
+            self.stack.append(Value("%" + str(self.generator.reg - 1), self.getTypeVarType(temp[0][1])))
+
 
     # Enter a parse tree produced by asdParser#value.
     def enterValue(self, ctx: asdParser.ValueContext):
@@ -591,16 +688,42 @@ class Listener(asdListener):
         elif varTp == VarType.STRING:
             return 'i8*'
 
+    def getTypeVarType(self, _type):
+        if _type == 'i8':
+            _type = VarType.INT8
+        elif _type == 'i16':
+            _type = VarType.INT16
+        elif _type == 'i32':
+            _type = VarType.INT32
+        elif _type == 'i64':
+            _type = VarType.INT64
+        elif _type == 'f32' or _type == 'float':
+            _type = VarType.REAL32
+        elif _type == 'f64' or _type == 'double':
+            _type = VarType.REAL64
+        elif _type == 'bool' or _type == 'i1':
+            _type = VarType.BOOL
+        elif _type == 'str' or _type == 'i8*':
+            _type = VarType.STRING
+
+        return _type
+
     # Exit a parse tree produced by asdParser#id.
     def exitId(self, ctx: asdParser.IdContext):
         ID = str(ctx.ID())
 
         temp = [(x, y) for x, y in self.variables if x == ID]
         if len(temp) == 0:
-            raise Exception(ctx.start.line, "undeclared variable: ", ID)
+            temp = [(x, y) for x, y in self.localvariables if x == ID]
+            if len(temp) == 0:
+                raise Exception(ctx.start.line, "undeclared variable: ", ID)
+            else:
+                type = self.getTypeStr(temp[0][1])
+                self.generator.load("%" + str(ctx.ID()), type)
+                self.stack.append(Value("%" + str(self.generator.reg - 1), temp[0][1]))
         else:
             type = self.getTypeStr(temp[0][1])
-            self.generator.load("%" + str(ctx.ID()), type)
+            self.generator.load("@" + str(ctx.ID()), type)
             self.stack.append(Value("%" + str(self.generator.reg - 1), temp[0][1]))
 
         pass

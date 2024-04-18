@@ -10,8 +10,12 @@ expr: value ADD value #add
     | booleanOperation # booleanOp
     | IF '(' equal ')' '{' blockif '}' #if
     | REPEAT repsNr '{' blockwhile '}' #repeat
+    | FUNCTION funType funId '{' blockfun '}' #function
     ;
 
+funId: ID;
+funType: type;
+blockfun: expr*;
 repsNr: ID | INT;
 blockwhile: expr* ;
 equal: ID '==' INT;
@@ -38,6 +42,7 @@ value: INT #int
      | ID   #id
      | BOOL #bool
      | STRING #string
+     | ID '()' #call
      ;
 type: 'i8'
     | 'i16'
@@ -49,6 +54,7 @@ type: 'i8'
     | 'str'
     ;
 
+FUNCTION: 'fun';
 IF      : 'if';
 REPEAT   : 'repeat';
 AND     : 'and';

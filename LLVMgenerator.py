@@ -9,6 +9,8 @@ class LLVMgenerator:
         self.str = 1
         self.brstack = []
         self.br = 0
+        self.result_text = ""
+        self.main_reg = 1
 
 
     
@@ -16,7 +18,7 @@ class LLVMgenerator:
 ############ printf ###############
     def printf_string(self, id):
         id = str(id)
-        self.main_text += "%"+ str(self.reg) +" = load i8*, i8** %"+id+"\n"
+        self.main_text += "%"+ str(self.reg) +" = load i8*, i8** "+id+"\n"
         self.reg += 1      
         self.main_text += "%"+ str(self.reg) +" = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strps, i32 0, i32 0), i8* %"+str(self.reg-1)+")\n"
         self.reg += 1
@@ -24,7 +26,7 @@ class LLVMgenerator:
     # prints 'true' for value==1 and 'false' for value==0
     def printf_bool(self, id):
         id = str(id)
-        self.main_text += "%" + str(self.reg) + " = load i1, i1* %" + id + "\n"
+        self.main_text += "%" + str(self.reg) + " = load i1, i1* " + id + "\n"
         self.reg += 1
         # Select the appropriate string based on the boolean value
         self.main_text += "%" + str(self.reg) + " = select i1 %" + str(self.reg - 1) + ", i8* getelementptr inbounds ([5 x i8], [5 x i8]* @trueStr, i32 0, i32 0), i8* getelementptr inbounds ([6 x i8], [6 x i8]* @falseStr, i32 0, i32 0)\n"
@@ -35,7 +37,7 @@ class LLVMgenerator:
             
     def printf_i8(self, id):
         id = str(id)
-        self.main_text += "%" + str(self.reg) +" = load i8, i8* %" + id + "\n"
+        self.main_text += "%" + str(self.reg) +" = load i8, i8* " + id + "\n"
         self.reg += 1
         # promoting i8 to i32
         self.main_text += "%" + str(self.reg) + " = sext i8 %" + str(self.reg - 1) + " to i32\n"
@@ -47,7 +49,7 @@ class LLVMgenerator:
 
     def printf_i16(self, id):
         id = str(id)
-        self.main_text += "%" + str(self.reg) +" = load i16, i16* %" + id + "\n"
+        self.main_text += "%" + str(self.reg) +" = load i16, i16* " + id + "\n"
         self.reg += 1
         # promoting i16 to i32
         self.main_text += "%" + str(self.reg) + " = sext i16 %" + str(self.reg - 1) + " to i32\n"
@@ -58,7 +60,7 @@ class LLVMgenerator:
 
     def printf_i32(self, id):
         id = str(id)
-        self.main_text += "%" + str(self.reg) +" = load i32, i32* %" + id + "\n"
+        self.main_text += "%" + str(self.reg) +" = load i32, i32* " + id + "\n"
         self.reg += 1
         self.main_text += "%" + str(self.reg) + " = call i32 (ptr, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strpi, i32 0, i32 0), i32 %" \
                           + str(self.reg - 1) + ")\n"
@@ -66,7 +68,7 @@ class LLVMgenerator:
     
     def printf_i64(self, id):
         id = str(id)
-        self.main_text += "%" + str(self.reg) +" = load i64, i64* %" + id + "\n"
+        self.main_text += "%" + str(self.reg) +" = load i64, i64* " + id + "\n"
         self.reg += 1
         self.main_text += "%" + str(self.reg) + " = call i32 (ptr, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strpl, i32 0, i32 0), i64 %" \
                           + str(self.reg - 1) + ")\n"
@@ -75,7 +77,7 @@ class LLVMgenerator:
 
     def printf_double(self, id):
         id = str(id)
-        self.main_text += "%" + str(self.reg) +" = load double, double* %" + id + "\n"
+        self.main_text += "%" + str(self.reg) +" = load double, double* " + id + "\n"
         self.reg += 1
         self.main_text += "%" + str(self.reg) + " = call i32 (ptr, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strpd, i32 0, i32 0), double %" \
                           + str(self.reg - 1) + ")\n"
@@ -83,7 +85,7 @@ class LLVMgenerator:
     
     def printf_float32(self, id):
         id = str(id)
-        self.main_text += "%" + str(self.reg) +" = load float, float* %" + id + "\n"
+        self.main_text += "%" + str(self.reg) +" = load float, float* " + id + "\n"
         self.reg += 1
         # Convert float to double
         self.main_text += "%" + str(self.reg) + " = fpext float %" + str(self.reg - 1) + " to double\n"
@@ -191,14 +193,17 @@ class LLVMgenerator:
         self.reg += 1
 
 ########## DECLARE ################
-    def declare_string(self, id):
-        self.main_text += "%"+str(id)+" = alloca i8*\n"
+    def declare_string(self, id, is_global):
+        if is_global:
+            self.header_text += "@"+ str(id) + " = global [1 x i8] c\"\\00\"\n"
+        else:
+            self.main_text += "%" + str(id) + " = alloca i8*\n"
     
     def allocate_string(self, id, l):
         self.main_text += "%"+str(id)+" = alloca ["+str(l+1)+" x i8]\n"
     
     def constant_string(self, content):
-        l = len(content)+1;     
+        l = len(content)+1
         l = str(l)
         self.header_text += "@str"+str(self.str)+" = constant ["+l+" x i8] c\""+content+"\\00\"\n"
         n = "str"+str(self.str)
@@ -213,43 +218,64 @@ class LLVMgenerator:
         self.str += 1
    
     # declare boolean
-    def declare_bool(self, id):
-        self.main_text += "%" + str(id) + " = alloca i1\n"
+    def declare_bool(self, id, is_global):
+        if is_global:
+            self.header_text += "@"+ str(id) + " = global i1 0\n"
+        else:
+            self.main_text += "%" + str(id) + " = alloca i1\n"
 
     # declare i8 variable
-    def declare_i8(self, id):
-        self.main_text += "%" + str(id) + " = alloca i8\n"
+    def declare_i8(self, id, is_global):
+        if is_global:
+            self.header_text += "@"+ str(id) + " = global i8 0\n"
+        else:
+            self.main_text += "%" + str(id) + " = alloca i8\n"
 
     # declare i16 variable
-    def declare_i16(self, id):
-        self.main_text += "%" + str(id) + " = alloca i16\n"
+    def declare_i16(self, id, is_global):
+        if is_global:
+            self.header_text += "@"+ str(id) + " = global i16 0\n"
+        else:
+            self.main_text += "%" + str(id) + " = alloca i16\n"
     
     # declare i32 variable
-    def declare_i32(self, id):
-        self.main_text += "%" + str(id) + " = alloca i32\n"
+    def declare_i32(self, id, is_global):
+        if is_global:
+            self.header_text += "@"+ str(id) + " = global i32 0\n"
+        else:
+            self.main_text += "%" + str(id) + " = alloca i32\n"
 
     # declare i64 variable
-    def declare_i64(self, id):
-        self.main_text += "%" + str(id) + " = alloca i64\n"
+    def declare_i64(self, id, is_global):
+        if is_global:
+            self.header_text += "@"+ str(id) + " = global i64 0\n"
+        else:
+            self.main_text += "%" + str(id) + " = alloca i64\n"
 
     # declare f32 variable
-    def declare_float32(self, id):
-        self.main_text += "%" + str(id) + " = alloca float\n"
+    def declare_float32(self, id, is_global):
+        if is_global:
+            self.header_text += "@"+ str(id) + " = global float 0.0\n"
+        else:
+            self.main_text += "%" + str(id) + " = alloca float\n"
 
     # declare double variable
-    def declare_double(self, id):
-        self.main_text += "%" + str(id) + " = alloca double\n"
+    def declare_double(self, id, is_global):
+        if is_global:
+            self.header_text += "@"+ str(id) + " = global double 0.0\n"
+        else:
+            self.main_text += "%" + str(id) + " = alloca double\n"
     
 ########## ASSIGN ############
 
     def assign_string(self, id, value):
-        self.main_text += "store i8* %"+str(self.reg-1)+", i8** %"+str(id)+"\n"
+        self.main_text += "store i8* %"+str(self.reg-1)+", i8** "+str(id)+"\n"
    
 
     # assign boolean value
     def assign_bool(self, id, value):
         # if isinstance(value, int):
-            self.main_text += "store i1 " + str(value) + ", i1* %" + str(id) + "\n"
+            self.main_text += "store i1 " + str(value) + ", i1* " + str(id) + "\n"
         # else:
         #     self.reg += 1
         #     self.main_text += "%" + id + " = load i1, i1* " + value + '\n'
@@ -257,27 +283,27 @@ class LLVMgenerator:
     
     # assign i8 value
     def assign_i8(self, id, value):
-        self.main_text += "store i8 " + str(value) + ", i8* %" + str(id) + "\n"
+        self.main_text += "store i8 " + str(value) + ", i8* " + str(id) + "\n"
     
     # assign i16 value
     def assign_i16(self, id, value):
-        self.main_text += "store i16 " + str(value) + ", i16* %" + str(id) + "\n"
+        self.main_text += "store i16 " + str(value) + ", i16* " + str(id) + "\n"
 
     # assign i32 value
     def assign_i32(self, id, value):
-        self.main_text += "store i32 " + str(value) + ", i32* %" + str(id) + "\n"
+        self.main_text += "store i32 " + str(value) + ", i32* " + str(id) + "\n"
     
     # assign i64 value
     def assign_i64(self, id, value):
-        self.main_text += "store i64 " + str(value) + ", i64* %" + str(id) + "\n"
+        self.main_text += "store i64 " + str(value) + ", i64* " + str(id) + "\n"
     
     # assign float32 value
     def assign_float32(self, id, value):
-        self.main_text += "store float " + str(value) + ", float* %" + str(id) + "\n"
+        self.main_text += "store float " + str(value) + ", float* " + str(id) + "\n"
 
     # assign double value
     def assign_double(self, id, value):
-        self.main_text += "store double " + str(value) + ", double* %" + str(id) + "\n"
+        self.main_text += "store double " + str(value) + ", double* " + str(id) + "\n"
 
 ######## BOOLEAN OPERATIONS #############
     def NegOp(self, value):
@@ -542,9 +568,9 @@ class LLVMgenerator:
 #############  IF  ##################
 
     def icmp(self, id, value):
-        self.main_text += "%"+ str(self.reg) +" = load i32, i32* %"+id+"\n"
+        self.main_text += "%"+ str(self.reg) +" = load i32, i32* "+id+"\n"
         self.reg += 1
-        self.main_text += "%"+ str(self.reg) + " = icmp eq i32 %" + str(self.reg-1) + ", " + str(value) + "\n";
+        self.main_text += "%"+ str(self.reg) + " = icmp eq i32 %" + str(self.reg-1) + ", " + str(value) + "\n"
         self.reg += 1
 
 
@@ -563,17 +589,17 @@ class LLVMgenerator:
 ##################  REPEAT  ###############
 
     def repeatstart(self, repetitions):
-        self.declare_i32(self.reg)
+        self.declare_i32(str(self.reg), False)
         counter = self.reg
         self.reg += 1
-        self.assign_i32(counter, 0)
+        self.assign_i32('%'+str(counter), 0)
         self.br += 1
         self.main_text += "br label %cond"+ str(self.br) +"\n"
         self.main_text += "cond"+ str(self.br) +":\n"
 
         self.load("%"+str(counter), 'i32')
         self.add_i32("%"+str(self.reg-1), 1)
-        self.assign_i32(counter, "%"+str(self.reg-1))
+        self.assign_i32('%'+str(counter), "%"+str(self.reg-1))
 
         self.main_text += "%"+ str(self.reg) +" = icmp slt i32 %"+ str(self.reg-2) +", "+ str(repetitions) + "\n"
         self.reg += 1
@@ -589,6 +615,28 @@ class LLVMgenerator:
         self.main_text += "false"+ str(b) +":\n"
 
 
+###########  FUNCTION  #############
+
+    def functionstart(self, id, type):
+        self.result_text += self.main_text
+        self.main_reg = self.reg
+        self.main_text = "define " + str(type) + " @"+str(id)+"() nounwind {\n"
+        self.reg = 1
+
+
+    def functionend(self, type):
+        self.main_text += "ret " + str(type) + " %" + str(self.reg-1) + "\n"
+        self.main_text += "}\n"
+        self.header_text += self.main_text
+        self.main_text = ""
+        self.reg = self.main_reg
+
+    def close_main(self):
+        self.result_text += self.main_text
+
+    def call(self, id, type):
+        self.main_text += "%" + str(self.reg) + " = call " + str(type) + " @" + str(id) + "()\n"
+        self.reg += 1
 
 
     def generate(self):
@@ -610,7 +658,7 @@ class LLVMgenerator:
         text += "@strps = constant [4 x i8] c\"%s\\0A\\00\"\n"
         text += self.header_text
         text += "define i32 @main() nounwind{\n"
-        text += self.main_text
+        text += self.result_text
         text += "ret i32 0 }\n"
         return text
 
