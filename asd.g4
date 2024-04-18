@@ -17,13 +17,20 @@ expr: value ADD value #add
     | FUNCTION funType funId '{' blockfun '}' #function
     | STRUCT structId '{' blockstruct '}' #struct
     | CLASS classId '{' blockclass '}' #class
+    | var '=' STRUCT structId #structAssign
+    | var '=' CLASS classId #classAssign
     | ID '.' value #memberAccess
+    | ID '.' value '=' value #memberAssign
     ;
 
 structId: ID;
 classId : ID;
-blockclass: expr*;
-blockstruct: expr*;
+blockclass: declaration* (funType funId '{' blockfun '}')*;
+blockstruct: declaration*;
+declaration: var # varDeclaration
+           | var '[' INT ']' #arrayDeclaration
+           | var '[' INT ']' '[' INT ']' #matrixDeclaration
+           ;
 funId: ID;
 funType: type;
 blockfun: expr*;
