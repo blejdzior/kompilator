@@ -107,7 +107,7 @@ class LLVMgenerator:
         # self.main_text += "%"+ id +" = alloca i8*\n"
         self.main_text += "%"+str(self.reg)+" = getelementptr inbounds ["+str(l+1)+" x i8], ["+str(l+1)+" x i8]* %str"+str(self.str)+", i64 0, i64 0\n"
         self.reg += 1
-        self.main_text += "store i8* %"+str(self.reg-1)+", i8** %"+id+"\n"
+        self.main_text += "store i8* %"+str(self.reg-1)+", i8** "+id+"\n"
         self.str += 1
         self.main_text += "%"+str(self.reg)+" = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @strss, i32 0, i32 0), i8* %"+str(self.reg-1)+")\n"
         self.reg += 1
@@ -198,6 +198,14 @@ class LLVMgenerator:
         self.reg += 1
 
 ########## DECLARE ################
+
+
+    def declare_struct(self, id, variables):
+        self.header_text += f"%{id} = type " + '{'
+        for id, type in variables:
+            self.header_text += f"{type}, "
+        self.header_text += '}'
+
     def declare_array(self, id, type, size, is_global):
         if is_global:
             self.header_text += "@"+ str(id) + f" = global [{size} x {type}] zeroinitializer\n"

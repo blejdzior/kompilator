@@ -28,8 +28,6 @@ classId : ID;
 blockclass: declaration* (funType funId '{' blockfun '}')*;
 blockstruct: declaration*;
 declaration: var # varDeclaration
-           | var '[' INT ']' #arrayDeclaration
-           | var '[' INT ']' '[' INT ']' #matrixDeclaration
            ;
 funId: ID;
 funType: type;

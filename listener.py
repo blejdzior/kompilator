@@ -19,6 +19,8 @@ class VarType(Enum):
     STRING = 8
     ARRAY = 9
     MATRIX = 10
+    STRUCT = 11
+    CLASS = 12
 
 
 class Listener(asdListener):
@@ -34,6 +36,7 @@ class Listener(asdListener):
         self.function = ""
         self.functions = []
         self.localvariables = []
+        self.structs = []
         self.funType = 'i64'
 
     # Enter a parse tree produced by asdParser#prog.
@@ -48,6 +51,86 @@ class Listener(asdListener):
         f = open("result.ll", "w")
         f.write(result)
         f.close()
+
+
+    # var inside struct
+    def exitVarDeclaration(self, ctx: asdParser.VarDeclarationContext):
+        ID = ctx.var.ID().symbol.text
+        try:
+            type = ctx.var.type().symbol.text
+        except:
+            print(f"Line: {ctx.start.line}, struct variable must have type declaration")
+            return
+        if type == 'string':
+            print(f"Line: {ctx.start.line}, no strings in struct")
+            return
+        type = self.string_to_type(type)
+        self.stack.append(Value(ID, type))
+
+    # # array inside struct
+    # def exitArrayDeclaration(self, ctx: asdParser.ArrayDeclarationContext):
+    #     ID = ctx.var.ID().symbol.text
+    #     try:
+    #         type = ctx.var.type().symbol.text
+    #     except:
+    #         print(f"Line: {ctx.start.line}, struct variable must have type declaration")
+    #         return
+    #     type = self.string_to_type(type)
+    #     size = ctx.INT().symbol.text
+    #     self.stack.append(Value(ID, (VarType.ARRAY, type, size)))
+    
+    # # matrix inside struct
+    # def exitMatrixDeclaration(self, ctx: asdParser.MatrixDeclarationContext):
+    #     ID = ctx.var.ID().symbol.text
+    #     try:
+    #         type = ctx.var.type().symbol.text
+    #     except:
+    #         print(f"Line: {ctx.start.line}, struct variable must have type declaration")
+    #         return
+    #     type = self.string_to_type(type)
+    #     rows = ctx.INT(0).symbol.text
+    #     cols = ctx.INT(1).symbol.text
+    #     self.stack.append(Value(ID, (VarType.MATRIX, type, rows, cols)))
+    
+    def exitBlockstruct(self, ctx: asdParser.BlockstructContext):
+        i = 0
+        for var in ctx.declaration():
+            i += 1
+        self.stack.append(Value(i, VarType.STRUCT))
+
+    def exitStruct(self, ctx: asdParser.StructContext):
+        ID = ctx.structId.ID().symbol.text
+        try:
+            type = ctx.var().type_().getText()
+        except:
+            type = None
+        if type is not None:
+            raise Exception(ctx.start.line, "struct variable can't have type definition")
+
+        struct = self.stack.pop()
+        if struct.type != VarType.STRUCT:
+            print("Line: " + str(ctx.start.line) + "struct definition not of type struct")
+            return
+        
+        if struct.name == 0:
+            print("Line: " + str(ctx.start.line) + ", struct cannot be initialized without values")
+            return
+
+        variables = []
+        for i in range(struct.name):
+            v = self.stack.pop()
+            variables.append(v)
+        variables.reverse()
+        self.structs.append((ID, struct.name, variables))
+        for id, type in variables:
+            type = self.type_to_string
+
+        self.generator.declare_struct(ID, variables)
+            
+
+
+
+
 
 
     # Exit a parse tree produced by asdParser#add.
@@ -596,6 +679,8 @@ class Listener(asdListener):
             return VarType.REAL64
         elif string == 'bool' or string == VarType.BOOL:
             return VarType.BOOL
+        elif string == 'str':
+            return VarType.STRING
         else:
             return string
 
@@ -679,9 +764,14 @@ class Listener(asdListener):
     def exitRead(self, ctx: asdParser.ReadContext):
         ID = ctx.ID().symbol.text
         temp = [(x, y) for x, y in self.variables if x == ID]
-        if len(temp) == 0:
-            print("Line " + str(ctx.start.line) + ", unknown variable: " + str(ID))
-            return
+        if len(temp) != 0:
+            ID = '@' + ID
+        else:
+            temp = [(x, y) for x, y in self.localvariables if x == ID]
+            if len(temp) != 0:
+                ID = '%' + ID
+            else:
+                print("Line " + str(ctx.start.line) + ", unknown variable: " + str(ID))
         _type = temp[0][1]
         if _type == VarType.INT8:
             self.generator.scanf_int8(ID)
