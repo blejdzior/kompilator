@@ -202,9 +202,12 @@ class LLVMgenerator:
 
     def declare_struct(self, id, variables):
         self.header_text += f"%{id} = type " + '{'
-        for id, type in variables:
-            self.header_text += f"{type}, "
-        self.header_text += '}'
+        for index, v in enumerate(variables):
+            if index == len(variables) - 1:
+                self.header_text += f"{v.type}"
+            else:
+                self.header_text += f"{v.type}, "
+        self.header_text += "}\n"
 
     def declare_array(self, id, type, size, is_global):
         if is_global:
@@ -292,7 +295,22 @@ class LLVMgenerator:
             self.main_text += "%" + str(id) + " = alloca double\n"
     
 ########## ASSIGN ############
+    def assign_struct(self, id, structID, is_global):
+        if is_global:
+            self.header_text += f"{id} = global %{structID} zeroinitializer\n"
+        else:
+            self.main_text += f"{id} = alloca %{structID}\n"
 
+    def assign_struct_member(self, id, name, index, value, type):
+        self.main_text += f"%{self.reg} = getelementptr %{name}, %{name}* {id}, i32 0, i32 {index}\n"
+        self.main_text += f"store {type} {value}, {type}* %{self.reg}\n"
+        self.reg += 1
+
+    def struct_access(self, id, name, index, type):
+        self.main_text += f"%{self.reg} = getelementptr %{name}, %{name}* {id}, i32 0, i32 {index}\n"
+        self.reg += 1
+        self.main_text += f"%{self.reg} = load {type}, {type}* %{self.reg - 1}\n"
+        self.reg += 1
 
     def assign_matrix(self, id, type, rows, cols, lines):
         for i in range(rows):

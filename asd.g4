@@ -19,8 +19,8 @@ expr: value ADD value #add
     | CLASS classId '{' blockclass '}' #class
     | var '=' STRUCT structId #structAssign
     | var '=' CLASS classId #classAssign
-    | ID '.' value #memberAccess
-    | ID '.' value '=' value #memberAssign
+    | ID '.' var #memberAccess
+    | ID '.' var '=' value #memberAssign
     ;
 
 structId: ID;
