@@ -109,7 +109,7 @@ class LLVMgenerator:
         # self.main_text += "%"+ id +" = alloca i8*\n"
         self.main_text += "%"+str(self.reg)+" = getelementptr inbounds ["+str(l+1)+" x i8], ["+str(l+1)+" x i8]* %str"+str(self.str)+", i64 0, i64 0\n"
         self.reg += 1
-        self.main_text += "store i8* %"+str(self.reg-1)+", i8** %"+id+"\n"
+        self.main_text += "store i8* %"+str(self.reg-1)+", i8** "+id+"\n"
         self.str += 1
         self.main_text += "%"+str(self.reg)+" = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @strss, i32 0, i32 0), i8* %"+str(self.reg-1)+")\n"
         self.reg += 1
@@ -200,6 +200,17 @@ class LLVMgenerator:
         self.reg += 1
 
 ########## DECLARE ################
+
+
+    def declare_struct(self, id, variables):
+        self.header_text += f"%{id} = type " + '{'
+        for index, v in enumerate(variables):
+            if index == len(variables) - 1:
+                self.header_text += f"{v.type}"
+            else:
+                self.header_text += f"{v.type}, "
+        self.header_text += "}\n"
+
     def declare_array(self, id, type, size, is_global):
         if is_global:
             self.header_text += "@"+ str(id) + f" = global [{size} x {type}] zeroinitializer\n"
@@ -286,7 +297,22 @@ class LLVMgenerator:
             self.main_text += "%" + str(id) + " = alloca double\n"
     
 ########## ASSIGN ############
+    def assign_struct(self, id, structID, is_global):
+        if is_global:
+            self.header_text += f"{id} = global %{structID} zeroinitializer\n"
+        else:
+            self.main_text += f"{id} = alloca %{structID}\n"
 
+    def assign_struct_member(self, id, name, index, value, type):
+        self.main_text += f"%{self.reg} = getelementptr %{name}, %{name}* {id}, i32 0, i32 {index}\n"
+        self.main_text += f"store {type} {value}, {type}* %{self.reg}\n"
+        self.reg += 1
+
+    def struct_access(self, id, name, index, type):
+        self.main_text += f"%{self.reg} = getelementptr %{name}, %{name}* {id}, i32 0, i32 {index}\n"
+        self.reg += 1
+        self.main_text += f"%{self.reg} = load {type}, {type}* %{self.reg - 1}\n"
+        self.reg += 1
 
     def assign_matrix(self, id, type, rows, cols, lines):
         for i in range(rows):

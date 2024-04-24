@@ -18,6 +18,12 @@ expr: value ADD value #add
     | FOR ID 'in' genCallId '()' '{' blockfor '}' #forGen
     | FUNCTION funType funId '{' blockfun '}' #function
     | GENERATOR genType genId '{' blockGen '}' #generator
+    | STRUCT structId '{' blockstruct '}' #struct
+    | CLASS classId '{' blockclass '}' #class
+    | var '=' STRUCT structId #structAssign
+    | var '=' CLASS classId #classAssign
+    | ID '.' var #memberAccess
+    | ID '.' var '=' value #memberAssign
     ;
 
 genPrintId: ID;
@@ -27,6 +33,12 @@ genType: type;
 genId: ID;
 blockGen: (expr | yieldExpr)*;
 yieldExpr: YIELD value;
+structId: ID;
+classId : ID;
+blockclass: declaration* (funType funId '{' blockfun '}')*;
+blockstruct: declaration*;
+declaration: var # varDeclaration
+           ;
 funId: ID;
 funType: type;
 blockfun: expr*;
@@ -78,9 +90,11 @@ PRINTGEN: 'printgen';
 FOR     : 'for';
 GENERATOR: 'gen';
 YIELD   : 'yield';
+STRUCT  : 'struct';
+CLASS   : 'class';
 FUNCTION: 'fun';
 IF      : 'if';
-REPEAT   : 'repeat';
+REPEAT  : 'repeat';
 AND     : 'and';
 OR      : 'or';
 XOR     : 'xor';
