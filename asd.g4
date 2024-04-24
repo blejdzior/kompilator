@@ -14,9 +14,19 @@ expr: value ADD value #add
     | booleanOperation # booleanOp
     | IF '(' equal ')' '{' blockif '}' #if
     | REPEAT repsNr '{' blockwhile '}' #repeat
+    | PRINTGEN '(' genPrintId ')'   #printGen
+    | FOR ID 'in' genCallId '()' '{' blockfor '}' #forGen
     | FUNCTION funType funId '{' blockfun '}' #function
+    | GENERATOR genType genId '{' blockGen '}' #generator
     ;
 
+genPrintId: ID;
+genCallId: ID;
+blockfor: expr*;
+genType: type;
+genId: ID;
+blockGen: (expr | yieldExpr)*;
+yieldExpr: YIELD value;
 funId: ID;
 funType: type;
 blockfun: expr*;
@@ -64,6 +74,10 @@ type: 'i8'
     | 'str'
     ;
 
+PRINTGEN: 'printgen';
+FOR     : 'for';
+GENERATOR: 'gen';
+YIELD   : 'yield';
 FUNCTION: 'fun';
 IF      : 'if';
 REPEAT   : 'repeat';

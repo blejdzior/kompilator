@@ -35,6 +35,8 @@ class Listener(asdListener):
         self.functions = []
         self.localvariables = []
         self.funType = 'i64'
+        self.fun_gens = []
+        self.yieldNr = 1
 
     # Enter a parse tree produced by asdParser#prog.
     def enterProg(self, ctx: asdParser.ProgContext):
@@ -1021,11 +1023,70 @@ class Listener(asdListener):
 
         temp = [(x, y) for x, y in self.functions if x == ID]
         if len(temp) == 0:
-            raise Exception(ctx.start.line, "undeclared function: ", ID, self.functions)
+            temp = [(x, y) for x, y in self.fun_gens if x == ID]
+            if len(temp) == 0:
+                raise Exception(ctx.start.line, "undeclared function: ", ID, self.functions)
+            else:
+                self.generator.call_gen(ID)
+                self.stack.append(Value("%" + str(self.generator.reg - 1), self.getTypeVarType(temp[0][1])))
         else:
             self.generator.call(ID, temp[0][1])
             self.stack.append(Value("%" + str(self.generator.reg - 1), self.getTypeVarType(temp[0][1])))
 
+    # Exit a parse tree produced by asdParser#generator.
+    def exitGenerator(self, ctx:asdParser.GeneratorContext):
+        self.generator.gen_end(self.function, self.funType, self.yieldNr)
+        self.funType = 'i64'
+        self.isGlobal = True
+
+    # Exit a parse tree produced by asdParser#genType.
+    def exitGenType(self, ctx:asdParser.GenTypeContext):
+        _type = ctx.type_().getText()
+        if _type == 'f64':
+            _type = 'double'
+        elif _type == 'f32':
+            _type = 'float'
+        elif _type == 'bool':
+            _type = 'i1'
+        elif _type == 'str':
+            _type = 'i8*'
+
+        self.funType = _type
+
+    # Exit a parse tree produced by asdParser#genId.
+    def exitGenId(self, ctx:asdParser.GenIdContext):
+        ID = str(ctx.ID())
+        self.fun_gens.append((ID, self.funType))
+        self.function = ID
+        self.generator.gen_start(self.function, self.funType)
+
+    # Enter a parse tree produced by asdParser#blockGen.
+    def enterBlockGen(self, ctx:asdParser.BlockGenContext):
+        self.isGlobal = False
+
+    # Exit a parse tree produced by asdParser#blockGen.
+    def exitBlockGen(self, ctx:asdParser.BlockGenContext):
+        self.localvariables = []
+
+    # Exit a parse tree produced by asdParser#yieldExpr.
+    def exitYieldExpr(self, ctx:asdParser.YieldExprContext):
+        try:
+            value = ctx.value().INT().symbol.text
+        except:
+            try:
+                value = '%' + ctx.value().ID().symbol.text
+                self.generator.load(value, 'i32')
+                value = '%' + str(self.generator.reg-1)
+            except:
+                raise Exception(ctx.start.line, "unallowed expression")
+
+        self.generator._yield(self.function, value, self.funType, self.yieldNr)
+        self.yieldNr += 1
+
+    # Exit a parse tree produced by asdParser#printGen.
+    def exitPrintGen(self, ctx:asdParser.PrintGenContext):
+        ID = str(ctx.genPrintId().ID())
+        self.generator.print_gen(ID)
 
     # Enter a parse tree produced by asdParser#value.
     def enterValue(self, ctx: asdParser.ValueContext):
