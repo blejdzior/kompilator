@@ -40,6 +40,8 @@ class Listener(asdListener):
         self.funType = 'i64'
         self.fun_gens = []
         self.yieldNr = 1
+        self.classID = ''
+        self.class_variables = []
 
     # Enter a parse tree produced by asdParser#prog.
     def enterProg(self, ctx: asdParser.ProgContext):
@@ -67,7 +69,8 @@ class Listener(asdListener):
             print(f"Line: {ctx.start.line}, no strings in struct")
             return
         type = self.string_to_type(type)
-        self.stack.append(Value(ID, type))
+        if self.classID == '':
+            self.stack.append(Value(ID, type))
 
     # # array inside struct
     # def exitArrayDeclaration(self, ctx: asdParser.ArrayDeclarationContext):
@@ -93,7 +96,61 @@ class Listener(asdListener):
     #     rows = ctx.INT(0).symbol.text
     #     cols = ctx.INT(1).symbol.text
     #     self.stack.append(Value(ID, (VarType.MATRIX, type, rows, cols)))
+    def exitBlockclass(self, ctx:asdParser.BlockclassContext):
+        self.classID = ''
+        i = 0
+        for var in ctx.declaration():
+            i += 1
+        self.stack.append(Value(i, VarType.STRUCT))
     
+    def exitClass(self, ctx:asdParser.ClassContext):
+        pass
+    
+    def exitClassAssign(self, ctx:asdParser.ClassAssignContext):
+        ID = ctx.var().ID().symbol.text
+        classID = ctx.classId().ID().symbol.text
+
+        try:
+            type = ctx.var().type_().getText()
+        except:
+            type = None
+        if type is not None:
+            raise Exception(ctx.start.line, "class variable can't have type definition")
+
+        temp = [(x, y, z) for x, y, z in self.structs if x == classID]
+        if len(temp) == 0:
+            print(f"Line: {ctx.start.line}, class not defined")
+            return
+        
+        is_global = self.isGlobal
+        temp = [(x, y) for x, y in self.variables if x == ID]
+        if len(temp) != 0:
+            is_global = True
+        else:
+            temp = [(x, y) for x, y in self.localvariables if x == ID]
+            if len(temp) != 0:
+                is_global = False
+        
+
+        if is_global:
+            self.variables.append((ID, (VarType.STRUCT, classID)))
+            ID = '@' + ID
+        else:
+            self.localvariables.append((ID, (VarType.STRUCT, classID)))
+            ID = '%' + ID
+
+        self.class_variables.append((ID, classID))
+
+        self.generator.assign_struct(ID, classID, is_global)
+
+        # calling constructor
+        temp = [(x, y) for x, y in self.functions if x == classID + '_Create_Default']
+        if len(temp) != 0:
+            self.generator.callMethod(classID, classID + '_Create_Default', ID, temp[0][1], is_global)
+        else:
+            raise Exception(ctx.start.line, "constructor not defined")
+        
+
     def exitBlockstruct(self, ctx: asdParser.BlockstructContext):
         i = 0
         for var in ctx.declaration():
@@ -107,7 +164,7 @@ class Listener(asdListener):
         except:
             type = None
         if type is not None:
-            raise Exception(ctx.start.line, "struct variable can't have type definition")
+            raise Exception(ctx.start.line, "struct can't have type definition")
 
         struct = self.stack.pop()
         if struct.type != VarType.STRUCT:
@@ -168,21 +225,28 @@ class Listener(asdListener):
     def exitMemberAssign(self, ctx: asdParser.MemberAssignContext):
         structID = ctx.ID().symbol.text
         memberID = ctx.var().ID().symbol.text
-
         value = self.stack.pop()
+        isSelf = False
+        if structID == 'self':
+            structName = self.classID
+            isSelf = True       
 
         is_global = self.isGlobal
-        temp = [(x, y) for x, y in self.variables if x == structID]
-        if len(temp) != 0:
-            is_global = True
-        else:
-            temp = [(x, y) for x, y in self.localvariables if x == structID]
+        if not isSelf:
+            temp = [(x, y) for x, y in self.variables if x == structID]
             if len(temp) != 0:
-                is_global = False
+                is_global = True
             else:
-                print(f"Line:{ctx.start.line}, undefined variable {structID}")
-                return
-        struct = [(x, y, z) for x, y, z in self.structs if temp[0][1][1] == x]
+                temp = [(x, y) for x, y in self.localvariables if x == structID]
+                if len(temp) != 0:
+                    is_global = False
+                else:
+                    print(f"Line:{ctx.start.line}, undefined variable {structID}")
+                    return
+            struct = [(x, y, z) for x, y, z in self.structs if temp[0][1][1] == x]
+        else:
+            struct = [(x, y, z) for x, y, z in self.structs if structName == x]
+
         variables = struct[0][2]
         structName = struct[0][0]
         structVarCount = struct[0][1]
@@ -201,25 +265,37 @@ class Listener(asdListener):
             structID = '@' + structID
         else:
             structID = '%' + structID
+
+        if isSelf:
+            structID = '%this'
         self.generator.assign_struct_member(structID, structName, i, value.name, type)
     
     def exitMemberAccess(self, ctx:asdParser.MemberAccessContext):
         structID = ctx.ID().symbol.text
         memberID = ctx.var().ID().symbol.text
 
+        isSelf = False
+        if structID == 'self':
+            structName = self.classID
+            isSelf = True       
 
         is_global = self.isGlobal
-        temp = [(x, y) for x, y in self.variables if x == structID]
-        if len(temp) != 0:
-            is_global = True
-        else:
-            temp = [(x, y) for x, y in self.localvariables if x == structID]
+
+        if not isSelf:
+            temp = [(x, y) for x, y in self.variables if x == structID]
             if len(temp) != 0:
-                is_global = False
+                is_global = True
             else:
-                print(f"Line:{ctx.start.line}, undefined variable {structID}")
-                return
-        struct = [(x, y, z) for x, y, z in self.structs if temp[0][1][1] == x]
+                temp = [(x, y) for x, y in self.localvariables if x == structID]
+                if len(temp) != 0:
+                    is_global = False
+                else:
+                    print(f"Line:{ctx.start.line}, undefined variable {structID}")
+                    return
+            struct = [(x, y, z) for x, y, z in self.structs if temp[0][1][1] == x]
+        else:
+            struct = [(x, y, z) for x, y, z in self.structs if structName == x]
+
         variables = struct[0][2]
         structName = struct[0][0]
         structVarCount = struct[0][1]
@@ -234,7 +310,9 @@ class Listener(asdListener):
             structID = '@' + structID
         else:
             structID = '%' + structID
-            
+
+        if isSelf:
+            structID = '%this'
         self.generator.struct_access(structID, structName, i, type)
 
         self.stack.append(Value("%" + str(self.generator.reg - 1), self.string_to_type(type)))
@@ -1176,7 +1254,82 @@ class Listener(asdListener):
     def exitBlockwhile(self, ctx:asdParser.BlockwhileContext):
         self.generator.repeatend()
 
-    # Exit a parse tree produced by asdParser#function.
+    def enterClass(self, ctx:asdParser.ClassContext):
+        ID = ctx.classId().ID().symbol.text
+        self.classID = ID
+        try:
+            type = ctx.var().type_().getText()
+        except:
+            type = None
+        if type is not None:
+            raise Exception(ctx.start.line, "class can't have type definition")
+
+        i = 0
+        variables = []
+        for declaration in ctx.blockclass().declaration():
+            _type = declaration.var().type_().getText()
+            if _type == 'f64':
+                _type = 'double'
+            elif _type == 'f32':
+                _type = 'float'
+            elif _type == 'bool':
+                _type = 'i1'
+            elif _type == 'str':
+                _type = 'i8*'
+            variables.append(Value(declaration.var().ID().symbol.text, _type))
+            i += 1
+
+        self.generator.declare_struct(ID, variables)
+
+        self.structs.append((self.classID, i, variables))
+        
+
+
+    def exitMethodType(self, ctx:asdParser.MethodTypeContext):
+        _type = ctx.type_().getText()
+        if _type == 'f64':
+            _type = 'double'
+        elif _type == 'f32':
+            _type = 'float'
+        elif _type == 'bool':
+            _type = 'i1'
+        elif _type == 'str':
+            _type = 'i8*'
+        else: 
+            _type = 'i64'
+
+        self.funType = _type
+    
+
+
+
+
+    def exitMethodId(self, ctx:asdParser.MethodIdContext):
+        ID = str(ctx.ID())
+        if ID == self.classID:
+            ID = self.classID + '_Create_Default'
+        else:
+            ID = self.classID + '_' + str(ctx.ID())
+        self.functions.append((ID, self.funType))
+        self.function = ID
+        self.generator.methodStart(ID, self.funType, self.classID)
+
+    def enterBlockmethod(self, ctx:asdParser.BlockmethodContext):
+        self.isGlobal = False
+
+    def exitBlockmethod(self, ctx:asdParser.BlockmethodContext):
+        temp = [(x, y) for x, y in self.localvariables if x == self.function]
+        if len(temp) == 0:
+            self.generator.declare_i32(self.function, False)
+            self.generator.assign_i32("%"+str(self.function), 0)
+        #   "%"+self.function
+
+        self.generator.load("%"+str(self.function), self.funType)
+        self.generator.functionend(self.funType)
+        self.localvariables = []
+        self.isGlobal = True
+
+        # Exit a parse tree produced by asdParser#function.
     def exitFunction(self, ctx:asdParser.FunctionContext):
         self.funType = 'i64'
 
@@ -1233,6 +1386,23 @@ class Listener(asdListener):
         else:
             self.generator.call(ID, temp[0][1])
             self.stack.append(Value("%" + str(self.generator.reg - 1), self.getTypeVarType(temp[0][1])))
+    
+    def exitMethodCall(self, ctx:asdParser.MethodCallContext):
+        ID = str(ctx.ID())
+        methodID = str(ctx.var().ID())
+        is_global = self.isGlobal
+        if is_global:
+            ID = '@' + ID
+        else:
+            ID = '%' + ID
+        temp = [(x, y) for x, y in self.class_variables if x == ID]
+        classID = temp[0][1]
+        temp = [(x, y) for x, y in self.functions if x == classID + '_' + methodID]
+        if len(temp) != 0:
+            self.generator.callMethod(classID, classID + '_' + methodID, ID, temp[0][1], is_global)
+        else:
+            raise Exception(ctx.start.line, "method not defined")
+        self.stack.append(Value("%" + str(self.generator.reg - 1), self.getTypeVarType(temp[0][1])))
 
     # Exit a parse tree produced by asdParser#generator.
     def exitGenerator(self, ctx:asdParser.GeneratorContext):

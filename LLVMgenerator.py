@@ -712,6 +712,12 @@ class LLVMgenerator:
 
 
 ###########  FUNCTION  #############
+    def methodStart(self, id, type, classID):
+        self.result_text += self.main_text
+        self.main_reg = self.reg
+        self.main_text = "define " + str(type) + " @"+str(id)+f"(%{classID}* %this) " + "nounwind {\n"
+        self.reg = 1
+
 
     def functionstart(self, id, type):
         self.result_text += self.main_text
@@ -733,6 +739,17 @@ class LLVMgenerator:
     def call(self, id, type):
         self.main_text += "%" + str(self.reg) + " = call " + str(type) + " @" + str(id) + "()\n"
         self.reg += 1
+
+    def callMethod(self, classID, funID, ID, type, is_global):
+        if not is_global:
+            self.main_text += f"%{self.reg} = call {type} @{funID} (%{classID} {ID})\n"
+            self.reg += 1
+        else:
+            self.main_text += f"%{self.reg} = getelementptr %{classID}, %{classID}* {ID}\n"
+            self.reg += 1
+            self.main_text += f"%{self.reg} = call {type} @{funID} (ptr %{self.reg - 1})\n"
+            self.reg += 1
+
 
 ################    GENERATORY  ####################
     def gen_context(self, id, type):
