@@ -1,7 +1,19 @@
+gen i32 f {
+    yield 6
+    x = 23
+    yield x
+    yield 9
+}
+
+printgen(f)
+
+
 struct Asd {
     x:i64
     y:f64
 }
+
+
 
 x = struct Asd
 x.y = 1.0

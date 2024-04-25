@@ -14,7 +14,10 @@ expr: value ADD value #add
     | booleanOperation # booleanOp
     | IF '(' equal ')' '{' blockif '}' #if
     | REPEAT repsNr '{' blockwhile '}' #repeat
+    | PRINTGEN '(' genPrintId ')'   #printGen
+    | FOR ID 'in' genCallId '()' '{' blockfor '}' #forGen
     | FUNCTION funType funId '{' blockfun '}' #function
+    | GENERATOR genType genId '{' blockGen '}' #generator
     | STRUCT structId '{' blockstruct '}' #struct
     | CLASS classId '{' blockclass '}' #class
     | var '=' STRUCT structId #structAssign
@@ -23,6 +26,13 @@ expr: value ADD value #add
     | ID '.' var '=' value #memberAssign
     ;
 
+genPrintId: ID;
+genCallId: ID;
+blockfor: expr*;
+genType: type;
+genId: ID;
+blockGen: (expr | yieldExpr)*;
+yieldExpr: YIELD value;
 structId: ID;
 classId : ID;
 blockclass: declaration* (funType funId '{' blockfun '}')*;
@@ -76,6 +86,10 @@ type: 'i8'
     | 'str'
     ;
 
+PRINTGEN: 'printgen';
+FOR     : 'for';
+GENERATOR: 'gen';
+YIELD   : 'yield';
 STRUCT  : 'struct';
 CLASS   : 'class';
 FUNCTION: 'fun';
