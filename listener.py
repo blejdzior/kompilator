@@ -1381,7 +1381,7 @@ class Listener(asdListener):
             if len(temp) == 0:
                 raise Exception(ctx.start.line, "undeclared function: ", ID, self.functions)
             else:
-                self.generator.call_gen(ID)
+                self.generator.call_gen(ID, temp[0][1])
                 self.stack.append(Value("%" + str(self.generator.reg - 1), self.getTypeVarType(temp[0][1])))
         else:
             self.generator.call(ID, temp[0][1])
@@ -1456,11 +1456,14 @@ class Listener(asdListener):
             value = ctx.value().INT().symbol.text
         except:
             try:
-                value = '%' + ctx.value().ID().symbol.text
-                self.generator.load(value, 'i32')
-                value = '%' + str(self.generator.reg-1)
+                value = ctx.value().REAL().symbol.text
             except:
-                raise Exception(ctx.start.line, "unallowed expression")
+                try:
+                    value = '%' + ctx.value().ID().symbol.text
+                    self.generator.load(value, self.funType)
+                    value = '%' + str(self.generator.reg-1)
+                except:
+                    raise Exception(ctx.start.line, "unallowed expression")
 
         self.generator._yield(self.function, value, self.funType, self.yieldNr)
         self.yieldNr += 1
@@ -1468,7 +1471,11 @@ class Listener(asdListener):
     # Exit a parse tree produced by asdParser#printGen.
     def exitPrintGen(self, ctx:asdParser.PrintGenContext):
         ID = str(ctx.genPrintId().ID())
-        self.generator.print_gen(ID)
+        temp = [(x, y) for x, y in self.fun_gens if x == ID]
+        if len(temp) == 0:
+            raise Exception(ctx.start.line, "undeclared generator")
+        else:
+            self.generator.print_gen(ID, temp[0][1])
 
     # Enter a parse tree produced by asdParser#value.
     def enterValue(self, ctx: asdParser.ValueContext):

@@ -795,16 +795,16 @@ class LLVMgenerator:
         self.reg = self.main_reg
 
     def _yield(self, gen_id, value, type, yield_nr):
-        self.main_text += f"%{str(self.reg)} = getelementptr %{str(gen_id)}_context, %{str(gen_id)}_context* %context, {type} 0, {type} 1\n"
+        self.main_text += f"%{str(self.reg)} = getelementptr %{str(gen_id)}_context, %{str(gen_id)}_context* %context, i32 0, i32 1\n"
         self.main_text += f"store {type} {value}, ptr %{str(self.reg)}\n"
         self.reg += 1
-        self.main_text += f"%{str(self.reg)} = getelementptr %{str(gen_id)}_context, %{str(gen_id)}_context* %context, {type} 0, {type} 0\n"
+        self.main_text += f"%{str(self.reg)} = getelementptr %{str(gen_id)}_context, %{str(gen_id)}_context* %context, i32 0, i32 0\n"
         self.main_text += f"store i8* blockaddress(@{str(gen_id)}_yield, %.yield{str(yield_nr+1)}), i8** %{str(self.reg)}\n"
         self.reg += 1
         self.main_text += f"ret i1 1\n"
         self.main_text += f".yield{str(yield_nr+1)}:\n"
 
-    def call_gen(self, _id):
+    def call_gen(self, _id, _type):
         if self.isFirstGenCall:
             self.main_text += f"%context = alloca %{str(_id)}_context\n"
             self.main_text += f"call void @{str(_id)}_setup(%{str(_id)}_context* %context)\n"
@@ -814,10 +814,10 @@ class LLVMgenerator:
         self.reg += 1
         self.main_text += f"%{str(self.reg)} = getelementptr %{str(_id)}_context, %{str(_id)}_context* %context, i32 0, i32 1\n"
         self.reg += 1
-        self.main_text += "%" + str(self.reg) + " = load i32, ptr %" + str(self.reg-1) + "\n"
+        self.main_text += "%" + str(self.reg) + f" = load {_type}, ptr %" + str(self.reg-1) + "\n"
         self.reg += 1
 
-    def print_gen(self, _id):
+    def print_gen(self, _id, _type):
         if self.isFirstGenCall:
             self.main_text += f"%context = alloca %{str(_id)}_context\n"
             self.isFirstGenCall = False
@@ -836,9 +836,10 @@ class LLVMgenerator:
         self.main_text += f"%{str(self.reg)} = getelementptr %{str(_id)}_context, %{str(_id)}_context* %context, i32 0, i32 1\n"
         self.reg += 1
 
-        self.main_text += "%" + str(self.reg) + " = load i32, ptr %" + str(self.reg - 1) + "\n"
+        self.main_text += "%" + str(self.reg) + f" = load {_type}, ptr %" + str(self.reg - 1) + "\n"
         self.reg += 1
-        self.main_text += "%" + str(self.reg) + " = call i32 (ptr, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strpi, i32 0, i32 0), i32 %" \
+        type_first_letter = 'd' if (_type == 'double' or _type == 'float') else 'i'
+        self.main_text += "%" + str(self.reg) + f" = call i32 (ptr, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strp{type_first_letter}, i32 0, i32 0), {_type} %" \
                           + str(self.reg - 1) + ")\n"
         self.reg += 1
         self.main_text += f"br label %.head{str(self.genPrintNr)}\n"
