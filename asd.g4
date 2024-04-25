@@ -24,6 +24,7 @@ expr: value ADD value #add
     | var '=' CLASS classId #classAssign
     | ID '.' var #memberAccess
     | ID '.' var '=' value #memberAssign
+    | ID '.' var '()' #methodCall
     ;
 
 genPrintId: ID;
@@ -35,7 +36,11 @@ blockGen: (expr | yieldExpr)*;
 yieldExpr: YIELD value;
 structId: ID;
 classId : ID;
-blockclass: declaration* (funType funId '{' blockfun '}')*;
+blockclass: declaration* method*;
+method: funType funId '{' blockmethod '}'
+        ;
+blockmethod: expr*;
+
 blockstruct: declaration*;
 declaration: var # varDeclaration
            ;
