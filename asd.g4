@@ -37,9 +37,11 @@ yieldExpr: YIELD value;
 structId: ID;
 classId : ID;
 blockclass: declaration* method*;
-method: funType funId '{' blockmethod '}'
+method: methodType methodId '{' blockmethod '}'
         ;
 blockmethod: expr*;
+methodType: type;
+methodId: ID;
 
 blockstruct: declaration*;
 declaration: var # varDeclaration
