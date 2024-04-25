@@ -741,15 +741,21 @@ class LLVMgenerator:
         self.reg += 1
 
     def callMethod(self, classID, funID, ID, type, is_global):
-        if not is_global:
-            self.main_text += f"%{self.reg} = call {type} @{funID} (%{classID} {ID})\n"
-            self.reg += 1
-        else:
-            self.main_text += f"%{self.reg} = getelementptr %{classID}, %{classID}* {ID}\n"
-            self.reg += 1
-            self.main_text += f"%{self.reg} = call {type} @{funID} (ptr %{self.reg - 1})\n"
-            self.reg += 1
 
+        self.main_text += f"%{self.reg} = getelementptr %{classID}, %{classID}* {ID}\n"
+        self.reg += 1
+        self.main_text += f"%{self.reg} = call {type} @{funID} (ptr %{self.reg - 1})\n"
+        self.reg += 1
+
+
+        # if not is_global:
+        #     if classID == 'ptr':
+        #         self.main_text += f"%{self.reg} = call {type} @{funID} ({classID} {ID})\n"
+        #     else:
+        #         self.main_text += f"%{self.reg} = call {type} @{funID} (%{classID} {ID})\n"
+
+        #     self.reg += 1
+        # else:
 
 ################    GENERATORY  ####################
     def gen_context(self, id, type):

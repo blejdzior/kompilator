@@ -1390,16 +1390,27 @@ class Listener(asdListener):
     def exitMethodCall(self, ctx:asdParser.MethodCallContext):
         ID = str(ctx.ID())
         methodID = str(ctx.var().ID())
+        isSelf = False
+        if ID == 'self':
+            isSelf = True
+            ID = "%this"
+
         is_global = self.isGlobal
-        if is_global:
-            ID = '@' + ID
+        if not isSelf:
+            if is_global:
+                ID = '@' + ID
+            else:
+                ID = '%' + ID
+            temp = [(x, y) for x, y in self.class_variables if x == ID]
+            classID = temp[0][1]
         else:
-            ID = '%' + ID
-        temp = [(x, y) for x, y in self.class_variables if x == ID]
-        classID = temp[0][1]
+            classID = self.classID
         temp = [(x, y) for x, y in self.functions if x == classID + '_' + methodID]
         if len(temp) != 0:
-            self.generator.callMethod(classID, classID + '_' + methodID, ID, temp[0][1], is_global)
+            if not isSelf:
+                self.generator.callMethod(classID, classID + '_' + methodID, ID, temp[0][1], is_global)
+            else:
+                self.generator.callMethod(classID, classID + '_' + methodID, ID, temp[0][1], is_global)
         else:
             raise Exception(ctx.start.line, "method not defined")
         self.stack.append(Value("%" + str(self.generator.reg - 1), self.getTypeVarType(temp[0][1])))
